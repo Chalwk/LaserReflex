@@ -28,7 +28,7 @@ local levels = {
         map = {
             { x = 3, y = 3, type = "laser", dir = "right" },
             { x = 6, y = 3, type = "mirror", state = "M1" },
-            { x = 5, y = 5, type = "target" }
+            { x = 6, y = 5, type = "target" }
         }
     },
 
