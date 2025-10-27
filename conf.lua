@@ -1,3 +1,8 @@
+-- LaserReflex - Love2D
+-- Tile-based puzzle: rotate mirrors to direct lasers into targets.
+-- License: MIT
+-- Copyright (c) 2025 Jericho Crosby (Chalwk)
+
 function love.conf(t)
     t.window.title = "LaserReflex"
     t.window.width = 800
