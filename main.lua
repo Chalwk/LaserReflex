@@ -1,7 +1,7 @@
 -- LaserReflex - Love2D
 -- Tile-based puzzle: rotate mirrors to direct lasers into targets.
 -- License: MIT
--- Copyright (c) 2025 Jericho Crosby (Chalwk)
+-- © 2025 Jericho Crosby (Chalwk)
 
 local math_max = math.max
 local math_min = math.min
@@ -20,15 +20,15 @@ local setLineWidth = love.graphics.setLineWidth
 -- CONFIG / LEVELS
 -- ======================================================
 
--- Token legend (for level map strings):
+-- Token legend:
 -- '.' = empty
--- '^', '>', 'v', '<' = laser source and initial direction
--- '/', '\' = mirror (slash and backslash)
+-- '^', '>', 'v', '<' = laser source and direction
+-- 'M1'..'M4' = mirrors (4 rotation states)
 -- 'T' = target
--- '#' = wall (blocks beam)
+-- '#' = wall
 --
--- Mirrors rotate between slash and backslash.
--- Left-click rotates clockwise (/ -> \ -> /), right-click rotates counter-clockwise.
+-- Mirrors cycle between M1 → M2 → M3 → M4 → M1.
+-- Only M1 and M4 reflect; M2 and M3 block the beam.
 
 local levels = {
     -- Level 1: Basic single reflection
@@ -38,7 +38,7 @@ local levels = {
         map = {
             ".........",
             ".........",
-            "..>...\\..",
+            "..>...M1.",
             ".........",
             ".....T...",
             ".........",
@@ -54,12 +54,12 @@ local levels = {
         size = { 9, 9 },
         map = {
             ".........",
-            ".>..\\....",
+            ".>..M2...",
             ".........",
             ".........",
             ".....T...",
             "....T....",
-            ".....\\.<.",
+            ".....M2.<.",
             ".........",
             ".........",
         }
@@ -71,7 +71,7 @@ local levels = {
         size = { 9, 9 },
         map = {
             ".........",
-            ".>..\\#...",
+            ".>..M2#..",
             ".....#...",
             ".....#...",
             "..../.T..",
@@ -88,7 +88,7 @@ local levels = {
         size = { 9, 9 },
         map = {
             ".........",
-            ".>..\\#...",
+            ".>..M2#..",
             ".....#...",
             ".....#...",
             "..T..#...",
@@ -106,7 +106,7 @@ local levels = {
         map = {
             ".........",
             ".........",
-            "..>..\\...",
+            "..>..M2..",
             ".........",
             "..#..#...",
             ".........",
@@ -125,7 +125,7 @@ local levels = {
             "...........",
             "...>.......",
             "...........",
-            ".....\\.....",
+            ".....M2....",
             "...........",
             "..#....#...",
             "...........",
@@ -144,7 +144,7 @@ local levels = {
             ".#.#.#.#.#.",
             ".>.........",
             ".#.#.#.#.#.",
-            "....\\......",
+            "....M2.....",
             ".#.#.#.#.#.",
             "...........",
             ".#.#.#.#.#.",
@@ -163,11 +163,11 @@ local levels = {
             ".>............",
             ".............",
             "..#...#...#..",
-            "....\\........",
+            "....M2.......",
             "..#.......#..",
-            "......\\......",
+            "......M2.....",
             "..#.......#..",
-            "..../........",
+            "....M1.......",
             "..#...#...#..",
             ".............",
             ".........T...",
@@ -183,11 +183,11 @@ local levels = {
             "v............",
             ".............",
             "......#......",
-            "......\\......",
+            "......M2.....",
             "......#......",
-            ">...../.....<",
+            ">.....M1.....<",
             "......#......",
-            "......\\......",
+            "......M2.....",
             "......#......",
             ".............",
             "......T......",
@@ -205,11 +205,11 @@ local levels = {
             ".>.........#...",
             ".............#.",
             "..#.....#......",
-            "...\\.........#",
+            "...M2.........#",
             ".............#.",
-            "..#....\\.......",
+            "..#....M2......",
             "......#......#.",
-            "..#...../....#.",
+            "..#.....M1...#.",
             "..............#",
             "..#....T.....#.",
             ".............#.",
@@ -227,14 +227,14 @@ local levels = {
             "...............",
             "...........T...",
             "..#...#.#......",
-            "......\\........",
+            "......M2.......",
             ".#.#.#.#.#.#.#.",
             "..............>",
-            "....../........",
+            "......M1.......",
             ".#.#.#.#.#.#.#.",
-            "......\\........",
+            "......M2.......",
             ".#.#.#.#.#.#.#.",
-            "....../........",
+            "......M1.......",
             ".#.#.#.#.#.#.#.",
             "..............",
             "..............",
@@ -253,11 +253,11 @@ local levels = {
             ".#.#.#.#.#.#.#.#.",
             ".................",
             ".#.#.#.#.#.#.#.#.",
-            "........\\........",
+            "........M2.......",
             ".#.#.#.#.#.#.#.#.",
-            "......../........",
+            "........M1.......",
             ".#.#.#.#.#.#.#.#.",
-            "........\\........",
+            "........M2.......",
             ".#.#.#.#.#.#.#.#.",
             ".................",
             ".#.#.#.#.#.#.#.#.",
@@ -269,11 +269,8 @@ local levels = {
 }
 
 -- ======================================================
--- GAME STATE + METATABLES
+-- GAME STATE
 -- ======================================================
-
-local tileproto = {}
-tileproto.__index = tileproto
 
 local currentLevel = 1
 local grid = {}
@@ -282,7 +279,6 @@ local tileSize = 48
 local gridOffsetX, gridOffsetY = 40, 40
 
 local beams = {}
-local beamHits = {}
 local targetsHit = {}
 local lasers = {}
 local selected = { x = nil, y = nil }
@@ -297,26 +293,31 @@ local dirVecs = {
 }
 local charToDir = { ['^'] = 0, ['>'] = 1, ['v'] = 2, ['<'] = 3 }
 
--- mirror reflection: mirrorReflect[mirrorType][incomingDir] = outgoingDir
+-- ======================================================
+-- MIRROR REFLECTION RULES
+-- ======================================================
+
+-- Reflection logic for each mirror state:
+-- Keys = incoming direction; Values = new outgoing direction
+-- 0=up, 1=right, 2=down, 3=left
 local mirrorReflect = {
-    -- '/' mirror
-    ['/'] = {
-        [0] = 1, -- up -> right
-        [1] = 0, -- right -> up
-        [2] = 3, -- down -> left
-        [3] = 2, -- left -> down
-    },
-    -- '\' mirror
-    ['\\'] = {
-        [0] = 3, -- up -> left
-        [1] = 2, -- right -> down
-        [2] = 1, -- down -> right
-        [3] = 0, -- left -> up
-    }
+    -- M1 reflects 90° clockwise (up→right, right→down, down→left, left→up)
+    M1 = { [0]=1, [1]=2, [2]=3, [3]=0 },
+
+    -- M2 blocks (no reflection)
+    M2 = {},
+
+    -- M3 blocks (no reflection)
+    M3 = {},
+
+    -- M4 reflects 90° counterclockwise (up→left, left→down, down→right, right→up)
+    M4 = { [0]=3, [3]=2, [2]=1, [1]=0 },
 }
 
+local mirrorStates = { "M1", "M2", "M3", "M4" }
+
 -- ======================================================
--- LOCAL HELPERS / ORGANISATION
+-- HELPERS
 -- ======================================================
 
 local function inBounds(x, y)
@@ -332,33 +333,41 @@ local function setTile(x, y, ch)
     if inBounds(x, y) then grid[y][x] = ch end
 end
 
--- forward declaration (loadLevel uses computeBeams)
 local computeBeams
+
+-- ======================================================
+-- LEVEL LOADING
+-- ======================================================
 
 local function loadLevel(idx)
     idx = idx or currentLevel
     local lev = levels[idx]
     assert(lev, "level not found")
     gw, gh = lev.size[1], lev.size[2]
-    grid = {}
-    lasers = {}
-    beams = {}
-    targetsHit = {}
+    grid, lasers, beams, targetsHit = {}, {}, {}, {}
     selected = { x = nil, y = nil }
 
     for y = 1, gh do
         local rowStr = lev.map[y] or string_rep('.', gw)
         grid[y] = {}
-        for x = 1, gw do
-            local ch = rowStr:sub(x, x) or '.'
-            grid[y][x] = ch
-            if charToDir[ch] then
-                table_insert(lasers, { x = x, y = y, d = charToDir[ch] })
+        local i = 1
+        while i <= #rowStr do
+            local ch = rowStr:sub(i, i)
+            if ch == 'M' then
+                local nextCh = rowStr:sub(i + 1, i + 1)
+                if nextCh:match("%d") then
+                    ch = "M" .. nextCh
+                    i = i + 1
+                end
             end
+            grid[y][#grid[y] + 1] = ch
+            if charToDir[ch] then
+                table_insert(lasers, { x = #grid[y], y = y, d = charToDir[ch] })
+            end
+            i = i + 1
         end
     end
 
-    -- compute tileSize and offset to nicely fit window
     local winw, winh = love.graphics.getDimensions()
     local maxTileW = math_floor((winw - 160) / gw)
     local maxTileH = math_floor((winh - 160) / gh)
@@ -366,7 +375,6 @@ local function loadLevel(idx)
     gridOffsetX = math_floor((winw - gw * tileSize) / 2)
     gridOffsetY = math_floor((winh - gh * tileSize) / 2)
 
-    -- compute beams initially
     computeBeams()
 end
 
@@ -374,27 +382,18 @@ local function screenToGrid(sx, sy)
     local gx = math_floor((sx - gridOffsetX) / tileSize) + 1
     local gy = math_floor((sy - gridOffsetY) / tileSize) + 1
     if inBounds(gx, gy) then return gx, gy end
-
-    return nil, nil
 end
 
 local function rotateMirror(x, y, delta)
     local ch = tileAt(x, y)
     if not ch then return end
-    if ch == '/' then
-        if delta and delta < 0 then
-            setTile(x, y, '\\') -- CCW: '/' -> '\'
-        else
-            setTile(x, y, '\\') -- CW also '/'
+    for i, state in ipairs(mirrorStates) do
+        if ch == state then
+            local newIndex = ((i - 1 + (delta or 1)) % #mirrorStates) + 1
+            setTile(x, y, mirrorStates[newIndex])
+            computeBeams()
+            return
         end
-        computeBeams()
-    elseif ch == '\\' then
-        if delta and delta < 0 then
-            setTile(x, y, '/')
-        else
-            setTile(x, y, '/')
-        end
-        computeBeams()
     end
 end
 
@@ -416,8 +415,6 @@ function computeBeams()
         local sx, sy, sd = src.x, src.y, src.d
         local x, y, d = sx, sy, sd
         local visited = {}
-
-        -- Start from the laser source and move in its direction
         x = x + dirVecs[d + 1].x
         y = y + dirVecs[d + 1].y
 
@@ -427,39 +424,28 @@ function computeBeams()
             visited[key] = true
 
             local ch = tileAt(x, y)
-
             if ch == '.' then
-                -- Empty cell - full beam
                 addBeamSegment(x, y, d, 0.45)
             elseif ch == '#' then
-                -- Wall - stop at edge of previous cell
-                -- Don't add beam for wall cell, break immediately
                 break
             elseif ch == 'T' then
-                -- Target - full beam
                 addBeamSegment(x, y, d, 0.45)
                 targetsHit[x .. "," .. y] = true
                 break
-            elseif ch == '/' or ch == '\\' then
-                -- Mirror - very short beam just touching the mirror
+            elseif mirrorReflect[ch] then
                 addBeamSegment(x, y, d, 0.15)
-
-                -- Calculate reflection
                 local refl = mirrorReflect[ch]
                 local newdir = refl[d]
                 if newdir then
                     d = newdir
                 else
-                    break
+                    break -- blocked mirror (M2/M3)
                 end
             elseif charToDir[ch] then
-                -- Pass through other lasers
                 addBeamSegment(x, y, d, 0.45)
             else
                 break
             end
-
-            -- Move to next cell
             x = x + dirVecs[d + 1].x
             y = y + dirVecs[d + 1].y
         end
@@ -514,11 +500,7 @@ function love.draw()
                 rectangle("fill", sx + 4, sy + 4, tileSize - 8, tileSize - 8)
             elseif ch == 'T' then
                 local hit = targetsHit[x .. "," .. y]
-                if hit then
-                    setColor(0.65, 0.95, 0.55)
-                else
-                    setColor(0.4, 0.95, 0.4)
-                end
+                setColor(hit and {0.65, 0.95, 0.55} or {0.4, 0.95, 0.4})
                 circle("fill", cx, cy, tileSize * 0.22)
                 setColor(0, 0, 0, 0.6)
                 circle("line", cx, cy, tileSize * 0.22)
@@ -527,23 +509,23 @@ function love.draw()
                 rectangle("fill", cx - 6, cy - 6, 12, 12)
                 setColor(0.06, 0.06, 0.06)
                 local d = charToDir[ch]
-                if d == 0 then
-                    polygon("fill", cx, cy - 10, cx - 6, cy + 4, cx + 6, cy + 4)
-                elseif d == 1 then
-                    polygon("fill", cx + 10, cy, cx - 4, cy - 6, cx - 4, cy + 6)
-                elseif d == 2 then
-                    polygon("fill", cx, cy + 10, cx - 6, cy - 4, cx + 6, cy - 4)
-                elseif d == 3 then
-                    polygon("fill", cx - 10, cy, cx + 4, cy - 6, cx + 4, cy + 6)
+                if d == 0 then polygon("fill", cx, cy - 10, cx - 6, cy + 4, cx + 6, cy + 4)
+                elseif d == 1 then polygon("fill", cx + 10, cy, cx - 4, cy - 6, cx - 4, cy + 6)
+                elseif d == 2 then polygon("fill", cx, cy + 10, cx - 6, cy - 4, cx + 6, cy - 4)
+                elseif d == 3 then polygon("fill", cx - 10, cy, cx + 4, cy - 6, cx + 4, cy + 6)
                 end
-            elseif ch == '/' or ch == '\\' then
+            elseif mirrorReflect[ch] then
                 setLineWidth(3)
-                setColor(0.9, 0.9, 0.9)
-                if ch == '/' then
-                    line(sx + 4, sy + tileSize - 4, sx + tileSize - 4, sy + 4)
-                else -- '\'
-                    line(sx + 4, sy + 4, sx + tileSize - 4, sy + tileSize - 4)
+                if ch == "M1" then setColor(0.9, 0.9, 0.9)
+                elseif ch == "M2" or ch == "M3" then setColor(0.5, 0.5, 0.5)
+                elseif ch == "M4" then setColor(1, 1, 1)
                 end
+                local angle = ({ M1 = 45, M2 = 0, M3 = 0, M4 = -45 })[ch]
+                love.graphics.push()
+                love.graphics.translate(cx, cy)
+                love.graphics.rotate(math.rad(angle))
+                line(-tileSize/2 + 4, 0, tileSize/2 - 4, 0)
+                love.graphics.pop()
                 setLineWidth(1)
             end
 
@@ -554,45 +536,34 @@ function love.draw()
         end
     end
 
-    -- Draw beams with proper lengths
     for _, b in ipairs(beams) do
         local sx = gridOffsetX + (b.x - 1) * tileSize
         local sy = gridOffsetY + (b.y - 1) * tileSize
         local cx = sx + tileSize / 2
         local cy = sy + tileSize / 2
         local d = b.d
-
         local ox = dirVecs[d + 1].x * tileSize * b.length
         local oy = dirVecs[d + 1].y * tileSize * b.length
-
         setColor(0.6, 1.0, 0.2, 0.95)
-        setLineWidth(4) -- Reduced from 6 for better visual appeal
+        setLineWidth(4)
         line(cx - ox, cy - oy, cx + ox, cy + oy)
         setLineWidth(1)
     end
 
     setColor(1, 1, 1)
-    love.graphics.printf(
-        "LaserReflex - Level: (" ..
-        currentLevel .. ") " .. (levels[currentLevel] and levels[currentLevel].name or tostring(currentLevel)), 8, 6,
-        love.graphics.getWidth() - 16, "center")
-    setColor(1, 1, 1)
-    love.graphics.print(
-        "Left-click mirror to rotate CW (/ -> \\), Right-click CCW. R reset. N/P next/prev level. Q/E rotate selected.",
-        8,
-        love.graphics.getHeight() - 28)
+    love.graphics.printf("LaserReflex - Level: (" .. currentLevel .. ") " ..
+        (levels[currentLevel] and levels[currentLevel].name or tostring(currentLevel)),
+        8, 6, love.graphics.getWidth() - 16, "center")
 
-    local totalTargets = 0
+    local totalTargets, hitCount = 0, 0
     for y = 1, gh do
         for x = 1, gw do
             if tileAt(x, y) == 'T' then totalTargets = totalTargets + 1 end
         end
     end
-    local hitCount = 0
-    for k, v in pairs(targetsHit) do hitCount = hitCount + 1 end
-    setColor(1, 1, 1)
-    love.graphics.print(string.format("Targets: %d / %d", hitCount, totalTargets), 8, 28)
+    for _ in pairs(targetsHit) do hitCount = hitCount + 1 end
 
+    love.graphics.print(string.format("Targets: %d / %d", hitCount, totalTargets), 8, 28)
     if totalTargets > 0 and hitCount == totalTargets then
         setColor(0.8, 1, 0.6)
         love.graphics.printf("All targets hit! Press N for next level.", 0, 48, love.graphics.getWidth(), "center")
@@ -602,7 +573,6 @@ end
 function love.mousepressed(x, y, button)
     local gx, gy = screenToGrid(x, y)
     if not gx then return end
-
     if button == 1 then
         selected.x, selected.y = gx, gy
         rotateMirror(gx, gy, 1)
