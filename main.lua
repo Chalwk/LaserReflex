@@ -1,7 +1,7 @@
 -- LaserReflex - Love2D
 -- Tile-based puzzle: rotate mirrors to direct lasers into targets.
 -- License: MIT
--- © 2025 Jericho Crosby (Chalwk)
+-- Copyright (c) 2025 Jericho Crosby (Chalwk)
 
 local math_max = math.max
 local math_min = math.min
