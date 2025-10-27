@@ -6,7 +6,6 @@
 local math_max = math.max
 local math_min = math.min
 local math_floor = math.floor
-local string_rep = string.rep
 local table_insert = table.insert
 
 local circle = love.graphics.circle
@@ -17,34 +16,19 @@ local setColor = love.graphics.setColor
 local setLineWidth = love.graphics.setLineWidth
 
 -- ======================================================
--- CONFIG / LEVELS
+-- CONFIG / LEVELS - IMPROVED FORMAT
 -- ======================================================
 
--- Token legend:
--- '.' = empty
--- '^', '>', 'v', '<' = laser source and direction
--- 'M1'..'M4' = mirrors (4 rotation states)
--- 'T' = target
--- '#' = wall
---
--- Mirrors cycle between M1 → M2 → M3 → M4 → M1.
--- Only M1 and M4 reflect; M2 and M3 block the beam.
-
+-- New intuitive level format using tables instead of strings
 local levels = {
     -- Level 1: Basic single reflection
     {
         name = "Simple Turn",
         size = { 9, 9 },
         map = {
-            ".........",
-            ".........",
-            "..>...M1.",
-            ".........",
-            ".....T...",
-            ".........",
-            ".........",
-            ".........",
-            ".........",
+            { x = 3, y = 3, type = "laser", dir = "right" },
+            { x = 6, y = 3, type = "mirror", state = "M1" },
+            { x = 5, y = 5, type = "target" }
         }
     },
 
@@ -53,15 +37,12 @@ local levels = {
         name = "Double Approach",
         size = { 9, 9 },
         map = {
-            ".........",
-            ".>..M2...",
-            ".........",
-            ".........",
-            ".....T...",
-            "....T....",
-            ".....M2.<.",
-            ".........",
-            ".........",
+            { x = 2, y = 2, type = "laser", dir = "right" },
+            { x = 5, y = 2, type = "mirror", state = "M2" },
+            { x = 6, y = 5, type = "target" },
+            { x = 4, y = 6, type = "target" },
+            { x = 7, y = 7, type = "mirror", state = "M2" },
+            { x = 8, y = 7, type = "laser", dir = "left" }
         }
     },
 
@@ -70,15 +51,14 @@ local levels = {
         name = "Wall Barriers",
         size = { 9, 9 },
         map = {
-            ".........",
-            ".>..M2#..",
-            ".....#...",
-            ".....#...",
-            "..../.T..",
-            ".....#...",
-            ".....#...",
-            ".........",
-            ".........",
+            { x = 2, y = 2, type = "laser", dir = "right" },
+            { x = 5, y = 2, type = "mirror", state = "M2" },
+            { x = 7, y = 2, type = "wall" },
+            { x = 5, y = 3, type = "wall" },
+            { x = 5, y = 4, type = "wall" },
+            { x = 5, y = 5, type = "target" },
+            { x = 5, y = 6, type = "wall" },
+            { x = 5, y = 7, type = "wall" }
         }
     },
 
@@ -87,15 +67,15 @@ local levels = {
         name = "Double Reflection",
         size = { 9, 9 },
         map = {
-            ".........",
-            ".>..M2#..",
-            ".....#...",
-            ".....#...",
-            "..T..#...",
-            "..../#...",
-            ".....#...",
-            ".........",
-            ".........",
+            { x = 2, y = 2, type = "laser", dir = "right" },
+            { x = 5, y = 2, type = "mirror", state = "M2" },
+            { x = 7, y = 2, type = "wall" },
+            { x = 5, y = 3, type = "wall" },
+            { x = 5, y = 4, type = "wall" },
+            { x = 3, y = 5, type = "target" },
+            { x = 5, y = 5, type = "wall" },
+            { x = 5, y = 6, type = "wall" },
+            { x = 5, y = 7, type = "wall" }
         }
     },
 
@@ -104,15 +84,11 @@ local levels = {
         name = "The U-Turn",
         size = { 9, 9 },
         map = {
-            ".........",
-            ".........",
-            "..>..M2..",
-            ".........",
-            "..#..#...",
-            ".........",
-            "../..T...",
-            ".........",
-            ".........",
+            { x = 3, y = 3, type = "laser", dir = "right" },
+            { x = 6, y = 3, type = "mirror", state = "M2" },
+            { x = 4, y = 5, type = "wall" },
+            { x = 7, y = 5, type = "wall" },
+            { x = 5, y = 7, type = "target" }
         }
     },
 
@@ -121,17 +97,12 @@ local levels = {
         name = "Dual Targets",
         size = { 11, 11 },
         map = {
-            "...........",
-            "...........",
-            "...>.......",
-            "...........",
-            ".....M2....",
-            "...........",
-            "..#....#...",
-            "...........",
-            "..T....T...",
-            "...........",
-            "...........",
+            { x = 4, y = 3, type = "laser", dir = "right" },
+            { x = 6, y = 5, type = "mirror", state = "M2" },
+            { x = 4, y = 7, type = "wall" },
+            { x = 8, y = 7, type = "wall" },
+            { x = 3, y = 9, type = "target" },
+            { x = 8, y = 9, type = "target" }
         }
     },
 
@@ -140,130 +111,15 @@ local levels = {
         name = "Mirror Maze",
         size = { 11, 11 },
         map = {
-            "...........",
-            ".#.#.#.#.#.",
-            ".>.........",
-            ".#.#.#.#.#.",
-            "....M2.....",
-            ".#.#.#.#.#.",
-            "...........",
-            ".#.#.#.#.#.",
-            ".....T.....",
-            ".#.#.#.#.#.",
-            "...........",
-        }
-    },
-
-    -- Level 8: Complex path with obstacles
-    {
-        name = "Obstacle Course",
-        size = { 13, 13 },
-        map = {
-            ".............",
-            ".>............",
-            ".............",
-            "..#...#...#..",
-            "....M2.......",
-            "..#.......#..",
-            "......M2.....",
-            "..#.......#..",
-            "....M1.......",
-            "..#...#...#..",
-            ".............",
-            ".........T...",
-            ".............",
-        }
-    },
-
-    -- Level 9: Multiple lasers, complex interactions
-    {
-        name = "Laser Grid",
-        size = { 13, 13 },
-        map = {
-            "v............",
-            ".............",
-            "......#......",
-            "......M2.....",
-            "......#......",
-            ">.....M1.....<",
-            "......#......",
-            "......M2.....",
-            "......#......",
-            ".............",
-            "......T......",
-            ".............",
-            "^............",
-        }
-    },
-
-    -- Level 10: Master challenge
-    {
-        name = "Master Puzzle",
-        size = { 15, 15 },
-        map = {
-            "...............",
-            ".>.........#...",
-            ".............#.",
-            "..#.....#......",
-            "...M2.........#",
-            ".............#.",
-            "..#....M2......",
-            "......#......#.",
-            "..#.....M1...#.",
-            "..............#",
-            "..#....T.....#.",
-            ".............#.",
-            "...#..........",
-            "..............",
-            "...............",
-        }
-    },
-
-    -- Level 11: Advanced reflection patterns
-    {
-        name = "Reflection Master",
-        size = { 15, 15 },
-        map = {
-            "...............",
-            "...........T...",
-            "..#...#.#......",
-            "......M2.......",
-            ".#.#.#.#.#.#.#.",
-            "..............>",
-            "......M1.......",
-            ".#.#.#.#.#.#.#.",
-            "......M2.......",
-            ".#.#.#.#.#.#.#.",
-            "......M1.......",
-            ".#.#.#.#.#.#.#.",
-            "..............",
-            "..............",
-            "...............",
-        }
-    },
-
-    -- Level 12: Final challenge
-    {
-        name = "Ultimate Test",
-        size = { 17, 17 },
-        map = {
-            ".................",
-            ".>..............#",
-            ".................",
-            ".#.#.#.#.#.#.#.#.",
-            ".................",
-            ".#.#.#.#.#.#.#.#.",
-            "........M2.......",
-            ".#.#.#.#.#.#.#.#.",
-            "........M1.......",
-            ".#.#.#.#.#.#.#.#.",
-            "........M2.......",
-            ".#.#.#.#.#.#.#.#.",
-            ".................",
-            ".#.#.#.#.#.#.#.#.",
-            "........T........",
-            ".................",
-            ".................",
+            { x = 2, y = 3, type = "laser", dir = "right" },
+            { x = 6, y = 5, type = "mirror", state = "M2" },
+            { x = 7, y = 9, type = "target" },
+            -- Walls in alternating pattern
+            { x = 2, y = 2, type = "wall" }, { x = 4, y = 2, type = "wall" }, { x = 6, y = 2, type = "wall" }, { x = 8, y = 2, type = "wall" }, { x = 10, y = 2, type = "wall" },
+            { x = 2, y = 4, type = "wall" }, { x = 4, y = 4, type = "wall" }, { x = 6, y = 4, type = "wall" }, { x = 8, y = 4, type = "wall" }, { x = 10, y = 4, type = "wall" },
+            { x = 2, y = 6, type = "wall" }, { x = 4, y = 6, type = "wall" }, { x = 6, y = 6, type = "wall" }, { x = 8, y = 6, type = "wall" }, { x = 10, y = 6, type = "wall" },
+            { x = 2, y = 8, type = "wall" }, { x = 4, y = 8, type = "wall" }, { x = 6, y = 8, type = "wall" }, { x = 8, y = 8, type = "wall" }, { x = 10, y = 8, type = "wall" },
+            { x = 2, y = 10, type = "wall" }, { x = 4, y = 10, type = "wall" }, { x = 6, y = 10, type = "wall" }, { x = 8, y = 10, type = "wall" }, { x = 10, y = 10, type = "wall" }
         }
     }
 }
@@ -292,6 +148,7 @@ local dirVecs = {
     { x = -1, y = 0 },
 }
 local charToDir = { ['^'] = 0, ['>'] = 1, ['v'] = 2, ['<'] = 3 }
+local dirToChar = { ['up'] = '^', ['right'] = '>', ['down'] = 'v', ['left'] = '<' }
 
 -- ======================================================
 -- MIRROR REFLECTION RULES
@@ -302,7 +159,7 @@ local charToDir = { ['^'] = 0, ['>'] = 1, ['v'] = 2, ['<'] = 3 }
 -- 0=up, 1=right, 2=down, 3=left
 local mirrorReflect = {
     -- M1 reflects 90° clockwise (up→right, right→down, down→left, left→up)
-    M1 = { [0]=1, [1]=2, [2]=3, [3]=0 },
+    M1 = { [0] = 1, [1] = 2, [2] = 3, [3] = 0 },
 
     -- M2 blocks (no reflection)
     M2 = {},
@@ -311,7 +168,7 @@ local mirrorReflect = {
     M3 = {},
 
     -- M4 reflects 90° counterclockwise (up→left, left→down, down→right, right→up)
-    M4 = { [0]=3, [3]=2, [2]=1, [1]=0 },
+    M4 = { [0] = 3, [3] = 2, [2] = 1, [1] = 0 },
 }
 
 local mirrorStates = { "M1", "M2", "M3", "M4" }
@@ -336,7 +193,7 @@ end
 local computeBeams
 
 -- ======================================================
--- LEVEL LOADING
+-- LEVEL LOADING - IMPROVED
 -- ======================================================
 
 local function loadLevel(idx)
@@ -347,24 +204,26 @@ local function loadLevel(idx)
     grid, lasers, beams, targetsHit = {}, {}, {}, {}
     selected = { x = nil, y = nil }
 
+    -- Initialize empty grid
     for y = 1, gh do
-        local rowStr = lev.map[y] or string_rep('.', gw)
         grid[y] = {}
-        local i = 1
-        while i <= #rowStr do
-            local ch = rowStr:sub(i, i)
-            if ch == 'M' then
-                local nextCh = rowStr:sub(i + 1, i + 1)
-                if nextCh:match("%d") then
-                    ch = "M" .. nextCh
-                    i = i + 1
-                end
-            end
-            grid[y][#grid[y] + 1] = ch
-            if charToDir[ch] then
-                table_insert(lasers, { x = #grid[y], y = y, d = charToDir[ch] })
-            end
-            i = i + 1
+        for x = 1, gw do
+            grid[y][x] = '.'
+        end
+    end
+
+    -- Place objects from the map definition
+    for _, obj in ipairs(lev.map) do
+        if obj.type == "laser" then
+            local char = dirToChar[obj.dir]
+            setTile(obj.x, obj.y, char)
+            table_insert(lasers, { x = obj.x, y = obj.y, d = charToDir[char] })
+        elseif obj.type == "mirror" then
+            setTile(obj.x, obj.y, obj.state)
+        elseif obj.type == "target" then
+            setTile(obj.x, obj.y, 'T')
+        elseif obj.type == "wall" then
+            setTile(obj.x, obj.y, '#')
         end
     end
 
@@ -500,7 +359,7 @@ function love.draw()
                 rectangle("fill", sx + 4, sy + 4, tileSize - 8, tileSize - 8)
             elseif ch == 'T' then
                 local hit = targetsHit[x .. "," .. y]
-                setColor(hit and {0.65, 0.95, 0.55} or {0.4, 0.95, 0.4})
+                setColor(hit and { 0.65, 0.95, 0.55 } or { 0.4, 0.95, 0.4 })
                 circle("fill", cx, cy, tileSize * 0.22)
                 setColor(0, 0, 0, 0.6)
                 circle("line", cx, cy, tileSize * 0.22)
@@ -509,22 +368,29 @@ function love.draw()
                 rectangle("fill", cx - 6, cy - 6, 12, 12)
                 setColor(0.06, 0.06, 0.06)
                 local d = charToDir[ch]
-                if d == 0 then polygon("fill", cx, cy - 10, cx - 6, cy + 4, cx + 6, cy + 4)
-                elseif d == 1 then polygon("fill", cx + 10, cy, cx - 4, cy - 6, cx - 4, cy + 6)
-                elseif d == 2 then polygon("fill", cx, cy + 10, cx - 6, cy - 4, cx + 6, cy - 4)
-                elseif d == 3 then polygon("fill", cx - 10, cy, cx + 4, cy - 6, cx + 4, cy + 6)
+                if d == 0 then
+                    polygon("fill", cx, cy - 10, cx - 6, cy + 4, cx + 6, cy + 4)
+                elseif d == 1 then
+                    polygon("fill", cx + 10, cy, cx - 4, cy - 6, cx - 4, cy + 6)
+                elseif d == 2 then
+                    polygon("fill", cx, cy + 10, cx - 6, cy - 4, cx + 6, cy - 4)
+                elseif d == 3 then
+                    polygon("fill", cx - 10, cy, cx + 4, cy - 6, cx + 4, cy + 6)
                 end
             elseif mirrorReflect[ch] then
                 setLineWidth(3)
-                if ch == "M1" then setColor(0.9, 0.9, 0.9)
-                elseif ch == "M2" or ch == "M3" then setColor(0.5, 0.5, 0.5)
-                elseif ch == "M4" then setColor(1, 1, 1)
+                if ch == "M1" then
+                    setColor(0.9, 0.9, 0.9)
+                elseif ch == "M2" or ch == "M3" then
+                    setColor(0.5, 0.5, 0.5)
+                elseif ch == "M4" then
+                    setColor(1, 1, 1)
                 end
                 local angle = ({ M1 = 45, M2 = 0, M3 = 0, M4 = -45 })[ch]
                 love.graphics.push()
                 love.graphics.translate(cx, cy)
                 love.graphics.rotate(math.rad(angle))
-                line(-tileSize/2 + 4, 0, tileSize/2 - 4, 0)
+                line(-tileSize / 2 + 4, 0, tileSize / 2 - 4, 0)
                 love.graphics.pop()
                 setLineWidth(1)
             end
