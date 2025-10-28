@@ -29,12 +29,32 @@ function Grid.new()
     instance.charToDir = { ['^'] = 0, ['>'] = 1, ['v'] = 2, ['<'] = 3 }
     instance.dirToChar = { ['up'] = '^', ['right'] = '>', ['down'] = 'v', ['left'] = '<' }
 
-    -- Mirror reflection rules
+    -- CORRECTED Mirror reflection rules
+    -- M1: Forward slash (/)
+    -- M2: Backslash (\)
+    -- M3, M4: Alternative orientations (blocking or other behaviors)
     instance.mirrorReflect = {
-        M1 = { [0] = 1, [1] = 2, [2] = 3, [3] = 0 },
-        M2 = {},
-        M3 = {},
-        M4 = { [0] = 3, [3] = 2, [2] = 1, [1] = 0 },
+        -- Forward slash (/): reflects 90 degrees
+        M1 = function(incomingDir)
+            if incomingDir == 0 then return 1 end     -- Up -> Right
+            if incomingDir == 1 then return 0 end     -- Right -> Up
+            if incomingDir == 2 then return 3 end     -- Down -> Left
+            if incomingDir == 3 then return 2 end     -- Left -> Down
+            return nil
+        end,
+        
+        -- Backslash (\): reflects 90 degrees  
+        M2 = function(incomingDir)
+            if incomingDir == 0 then return 3 end     -- Up -> Left
+            if incomingDir == 1 then return 2 end     -- Right -> Down
+            if incomingDir == 2 then return 1 end     -- Down -> Right
+            if incomingDir == 3 then return 0 end     -- Left -> Up
+            return nil
+        end,
+        
+        -- Blocking mirrors (no reflection)
+        M3 = function(incomingDir) return nil end,
+        M4 = function(incomingDir) return nil end
     }
 
     instance.mirrorStates = { "M1", "M2", "M3", "M4" }
@@ -125,6 +145,8 @@ function Grid:computeBeams()
         local sx, sy, sd = src.x, src.y, src.d
         local x, y, d = sx, sy, sd
         local visited = {}
+
+        -- Move beam out of laser starting position
         x = x + self.dirVecs[d + 1].x
         y = y + self.dirVecs[d + 1].y
 
@@ -144,18 +166,18 @@ function Grid:computeBeams()
                 break
             elseif self.mirrorReflect[ch] then
                 self:addBeamSegment(x, y, d, 0.15)
-                local refl = self.mirrorReflect[ch]
-                local newdir = refl[d]
+                local newdir = self.mirrorReflect[ch](d)
                 if newdir then
                     d = newdir
                 else
-                    break -- blocked mirror (M2/M3)
+                    break -- blocked mirror
                 end
             elseif self.charToDir[ch] then
                 self:addBeamSegment(x, y, d, 0.45)
             else
                 break
             end
+
             x = x + self.dirVecs[d + 1].x
             y = y + self.dirVecs[d + 1].y
         end
@@ -222,17 +244,22 @@ function Grid:draw()
                 love.graphics.setLineWidth(3)
                 if ch == "M1" then
                     love.graphics.setColor(0.9, 0.9, 0.9)
-                elseif ch == "M2" or ch == "M3" then
+                    -- Forward slash (/)
+                    love.graphics.line(cx - self.tileSize * 0.3, cy + self.tileSize * 0.3,
+                                      cx + self.tileSize * 0.3, cy - self.tileSize * 0.3)
+                elseif ch == "M2" then
+                    love.graphics.setColor(0.9, 0.9, 0.9)
+                    -- Backslash (\)
+                    love.graphics.line(cx - self.tileSize * 0.3, cy - self.tileSize * 0.3,
+                                      cx + self.tileSize * 0.3, cy + self.tileSize * 0.3)
+                elseif ch == "M3" or ch == "M4" then
                     love.graphics.setColor(0.5, 0.5, 0.5)
-                elseif ch == "M4" then
-                    love.graphics.setColor(1, 1, 1)
+                    -- Blocking mirrors - draw as X
+                    love.graphics.line(cx - self.tileSize * 0.3, cy - self.tileSize * 0.3,
+                                      cx + self.tileSize * 0.3, cy + self.tileSize * 0.3)
+                    love.graphics.line(cx - self.tileSize * 0.3, cy + self.tileSize * 0.3,
+                                      cx + self.tileSize * 0.3, cy - self.tileSize * 0.3)
                 end
-                local angle = ({ M1 = 45, M2 = 0, M3 = 0, M4 = -45 })[ch]
-                love.graphics.push()
-                love.graphics.translate(cx, cy)
-                love.graphics.rotate(math.rad(angle))
-                love.graphics.line(-self.tileSize / 2 + 4, 0, self.tileSize / 2 - 4, 0)
-                love.graphics.pop()
                 love.graphics.setLineWidth(1)
             end
         end
