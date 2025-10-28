@@ -24,7 +24,7 @@ function Game.new(levelManager, grid, soundManager, colors)
     instance.grid = grid
     instance.currentLevel = 1
     instance.selected = { x = nil, y = nil }
-    instance.font = love.graphics.newFont(14)
+    instance.font = love.graphics.newFont(16)
     instance.sounds = soundManager
     instance.colors = colors
 

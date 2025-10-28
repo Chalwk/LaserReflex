@@ -469,7 +469,7 @@ function Grid:draw()
         end
     end
 
-    -- Draw beams first
+    -- Draw beams
     for _, b in ipairs(self.beams) do
         local sx = self.gridOffsetX + (b.x - 1) * self.tileSize
         local sy = self.gridOffsetY + (b.y - 1) * self.tileSize
