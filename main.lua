@@ -4,38 +4,41 @@
 -- Copyright (c) 2025 Jericho Crosby (Chalwk)
 
 local Grid = require("classes/Grid")
-local GameManager = require("classes/Game")
+local Game = require("classes/Game")
 local LevelManager = require("classes.Levels")
+local SoundManager = require("classes/SoundManager")
 
-local gameManager, grid, levelManager
+local game, grid, levelManager
 
 function love.load()
+    local soundManager = SoundManager.new()
     levelManager = LevelManager.new()
-    grid = Grid.new()
-    gameManager = GameManager.new(levelManager, grid)
+
+    grid = Grid.new(soundManager)
+    game = Game.new(levelManager, grid, soundManager)
 
     local w, h = love.graphics.getDimensions()
-    gameManager:onResize(w, h)
+    game:onResize(w, h)
 
-    gameManager:loadLevel(1)
+    game:loadLevel(1)
 end
 
 function love.resize(w, h)
-    gameManager:onResize(w, h)
+    game:onResize(w, h)
 end
 
 function love.draw()
-    gameManager:draw()
+    game:draw()
 end
 
 function love.update(dt)
-    gameManager:update(dt)
+    game:update(dt)
 end
 
 function love.mousepressed(x, y, button)
-    gameManager:onMousePressed(x, y, button)
+    game:onMousePressed(x, y, button)
 end
 
 function love.keypressed(key)
-    gameManager:onKeyPressed(key)
+    game:onKeyPressed(key)
 end

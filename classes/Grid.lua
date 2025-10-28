@@ -8,9 +8,7 @@ local ParticleSystem = require("classes/Particles")
 local math_max = math.max
 local math_min = math.min
 local math_floor = math.floor
-
 local table_insert = table.insert
-
 local pairs = pairs
 local ipairs = ipairs
 
@@ -24,7 +22,7 @@ local line = love.graphics.line
 local Grid = {}
 Grid.__index = Grid
 
-function Grid.new()
+function Grid.new(soundManager)
     local instance = setmetatable({}, Grid)
 
     instance.grid = {}
@@ -35,6 +33,8 @@ function Grid.new()
     instance.gw, instance.gh = 9, 9
     instance.tileSize = 48
     instance.gridOffsetX, instance.gridOffsetY = 40, 40
+
+    instance.sounds = soundManager
 
     instance.particleSystem = ParticleSystem.new()
     instance.previouslyHit = {}
@@ -55,26 +55,26 @@ function Grid.new()
     -- M3, M4: Alternative orientations (blocking or other behaviors)
     instance.mirrorReflect = {
         -- Forward slash (/): reflects 90 degrees
-        M1 = function(incomingDir)
-            if incomingDir == 0 then return 1 end -- Up -> Right
-            if incomingDir == 1 then return 0 end -- Right -> Up
-            if incomingDir == 2 then return 3 end -- Down -> Left
-            if incomingDir == 3 then return 2 end -- Left -> Down
+        M1 = function(direction)
+            if direction == 0 then return 1 end -- Up -> Right
+            if direction == 1 then return 0 end -- Right -> Up
+            if direction == 2 then return 3 end -- Down -> Left
+            if direction == 3 then return 2 end -- Left -> Down
             return nil
         end,
 
         -- Backslash (\): reflects 90 degrees
-        M2 = function(incomingDir)
-            if incomingDir == 0 then return 3 end -- Up -> Left
-            if incomingDir == 1 then return 2 end -- Right -> Down
-            if incomingDir == 2 then return 1 end -- Down -> Right
-            if incomingDir == 3 then return 0 end -- Left -> Up
+        M2 = function(direction)
+            if direction == 0 then return 3 end -- Up -> Left
+            if direction == 1 then return 2 end -- Right -> Down
+            if direction == 2 then return 1 end -- Down -> Right
+            if direction == 3 then return 0 end -- Left -> Up
             return nil
         end,
 
         -- Blocking mirrors (no reflection)
-        M3 = function(incomingDir) return nil end,
-        M4 = function(incomingDir) return nil end
+        M3 = function(direction) return nil end, -- for a future update
+        M4 = function(direction) return nil end  -- for a future update
     }
 
     instance.mirrorStates = { "M1", "M2", "M3", "M4" }
@@ -149,6 +149,7 @@ function Grid:rotateMirror(x, y, delta)
             local newIndex = ((i - 1 + (delta or 1)) % #self.mirrorStates) + 1
             self:setTile(x, y, self.mirrorStates[newIndex])
             self:computeBeams()
+            self.sounds:play("rotate")
             return
         end
     end
@@ -160,6 +161,7 @@ end
 
 function Grid:computeBeams()
     self.beams = {}
+    self.targetsHit = {}   -- Clear previous hits at start of computation
     local currentHits = {} -- Track hits in current frame
 
     for _, src in ipairs(self.lasers) do
