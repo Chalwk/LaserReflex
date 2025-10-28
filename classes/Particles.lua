@@ -31,9 +31,9 @@ function Particle:emit(x, y, count)
             maxLife = 0.8 + math_random() * 1,
             size = 3 + math_random() * 4,
             color = {
-                0.2 + math_random() * 0.3,
-                0.8 + math_random() * 0.2,
-                0.3 + math_random() * 0.2
+                math_random(),
+                math_random(),
+                math_random()
             }
         })
     end
