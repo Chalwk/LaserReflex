@@ -92,7 +92,8 @@ function Grid.new(soundManager, colors)
 end
 
 function Grid:loadLevel(levelData)
-    self.gw, self.gh = levelData.size[1], levelData.size[2]
+    --self.gw, self.gh = levelData.size[1], levelData.size[2]
+    self.gw, self.gh = 10, 10 -- temp hard-coded grid size
     self.grid, self.lasers, self.beams, self.targetsHit = {}, {}, {}, {}
     self.previouslyHit = {}
 

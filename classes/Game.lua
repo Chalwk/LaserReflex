@@ -71,7 +71,7 @@ function Game:draw()
     end
 
     self.colors:setColor("white", 0.7)
-    love_printf(string_format(FOOTER_TEXT), 0, screenHeight - 30, screenWidth, "center")
+    love_print(string_format(FOOTER_TEXT), 8, screenHeight - 30)
 end
 
 function Game:update(dt)

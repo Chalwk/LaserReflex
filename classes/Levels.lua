@@ -13,7 +13,6 @@ function LevelManager.new()
         -- Level 1: Basic single reflection
         {
             name = "Simple Turn",
-            size = { 9, 9 },
             map = {
                 { x = 3, y = 3, type = "laser",  dir = "right" },
                 { x = 6, y = 3, type = "mirror", state = "M3" },
@@ -24,7 +23,6 @@ function LevelManager.new()
         -- Level 2: Two lasers, two targets
         {
             name = "Double Approach",
-            size = { 9, 9 },
             map = {
                 { x = 2, y = 2, type = "laser",  dir = "right" },
                 { x = 5, y = 2, type = "mirror", state = "M3" },
@@ -38,7 +36,6 @@ function LevelManager.new()
         -- Level 3: Introduce walls
         {
             name = "Wall Barriers",
-            size = { 9, 9 },
             map = {
                 { x = 2, y = 2, type = "laser",  dir = "right" },
                 { x = 6, y = 2, type = "mirror", state = "M3" },
@@ -55,7 +52,6 @@ function LevelManager.new()
         -- Level 4: Multiple reflections
         {
             name = "Double Reflection",
-            size = { 9, 9 },
             map = {
                 { x = 2, y = 2, type = "laser",  dir = "right" },
                 { x = 6, y = 2, type = "mirror", state = "M3" },
@@ -73,7 +69,6 @@ function LevelManager.new()
         -- Level 5: U-shaped path
         {
             name = "The U-Turn",
-            size = { 9, 9 },
             map = {
                 { x = 3, y = 3, type = "laser",  dir = "right" },
                 { x = 6, y = 3, type = "mirror", state = "M3" },
@@ -86,7 +81,6 @@ function LevelManager.new()
         -- Level 6: Multiple targets, single laser
         {
             name = "Dual Targets",
-            size = { 11, 11 },
             map = {
                 { x = 4, y = 3, type = "laser",  dir = "right" },
                 { x = 6, y = 5, type = "mirror", state = "M3" },
@@ -100,7 +94,6 @@ function LevelManager.new()
         -- Level 7: Beam Splitter demonstration
         {
             name = "Beam Splitter",
-            size = { 9, 9 },
             map = {
                 { x = 2, y = 5, type = "laser",   dir = "right" },
                 { x = 5, y = 5, type = "splitter" },
@@ -114,7 +107,6 @@ function LevelManager.new()
         -- Level 8: Maze-like structure
         {
             name = "Mirror Maze",
-            size = { 11, 11 },
             map = {
                 { x = 2, y = 3, type = "laser",  dir = "right" },
                 { x = 6, y = 5, type = "mirror", state = "M3" },
