@@ -29,29 +29,28 @@ function Grid.new()
     instance.charToDir = { ['^'] = 0, ['>'] = 1, ['v'] = 2, ['<'] = 3 }
     instance.dirToChar = { ['up'] = '^', ['right'] = '>', ['down'] = 'v', ['left'] = '<' }
 
-    -- CORRECTED Mirror reflection rules
     -- M1: Forward slash (/)
     -- M2: Backslash (\)
     -- M3, M4: Alternative orientations (blocking or other behaviors)
     instance.mirrorReflect = {
         -- Forward slash (/): reflects 90 degrees
         M1 = function(incomingDir)
-            if incomingDir == 0 then return 1 end     -- Up -> Right
-            if incomingDir == 1 then return 0 end     -- Right -> Up
-            if incomingDir == 2 then return 3 end     -- Down -> Left
-            if incomingDir == 3 then return 2 end     -- Left -> Down
+            if incomingDir == 0 then return 1 end -- Up -> Right
+            if incomingDir == 1 then return 0 end -- Right -> Up
+            if incomingDir == 2 then return 3 end -- Down -> Left
+            if incomingDir == 3 then return 2 end -- Left -> Down
             return nil
         end,
-        
-        -- Backslash (\): reflects 90 degrees  
+
+        -- Backslash (\): reflects 90 degrees
         M2 = function(incomingDir)
-            if incomingDir == 0 then return 3 end     -- Up -> Left
-            if incomingDir == 1 then return 2 end     -- Right -> Down
-            if incomingDir == 2 then return 1 end     -- Down -> Right
-            if incomingDir == 3 then return 0 end     -- Left -> Up
+            if incomingDir == 0 then return 3 end -- Up -> Left
+            if incomingDir == 1 then return 2 end -- Right -> Down
+            if incomingDir == 2 then return 1 end -- Down -> Right
+            if incomingDir == 3 then return 0 end -- Left -> Up
             return nil
         end,
-        
+
         -- Blocking mirrors (no reflection)
         M3 = function(incomingDir) return nil end,
         M4 = function(incomingDir) return nil end
@@ -246,19 +245,19 @@ function Grid:draw()
                     love.graphics.setColor(0.9, 0.9, 0.9)
                     -- Forward slash (/)
                     love.graphics.line(cx - self.tileSize * 0.3, cy + self.tileSize * 0.3,
-                                      cx + self.tileSize * 0.3, cy - self.tileSize * 0.3)
+                        cx + self.tileSize * 0.3, cy - self.tileSize * 0.3)
                 elseif ch == "M2" then
                     love.graphics.setColor(0.9, 0.9, 0.9)
                     -- Backslash (\)
                     love.graphics.line(cx - self.tileSize * 0.3, cy - self.tileSize * 0.3,
-                                      cx + self.tileSize * 0.3, cy + self.tileSize * 0.3)
+                        cx + self.tileSize * 0.3, cy + self.tileSize * 0.3)
                 elseif ch == "M3" or ch == "M4" then
                     love.graphics.setColor(0.5, 0.5, 0.5)
                     -- Blocking mirrors - draw as X
                     love.graphics.line(cx - self.tileSize * 0.3, cy - self.tileSize * 0.3,
-                                      cx + self.tileSize * 0.3, cy + self.tileSize * 0.3)
+                        cx + self.tileSize * 0.3, cy + self.tileSize * 0.3)
                     love.graphics.line(cx - self.tileSize * 0.3, cy + self.tileSize * 0.3,
-                                      cx + self.tileSize * 0.3, cy - self.tileSize * 0.3)
+                        cx + self.tileSize * 0.3, cy - self.tileSize * 0.3)
                 end
                 love.graphics.setLineWidth(1)
             end
