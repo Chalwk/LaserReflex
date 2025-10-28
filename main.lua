@@ -3,8 +3,8 @@
 -- License: MIT
 -- Copyright (c) 2025 Jericho Crosby (Chalwk)
 
-local GameManager = require("classes/GameManager")
 local Grid = require("classes/Grid")
+local GameManager = require("classes/GameManager")
 local LevelManager = require("classes/LevelManager")
 
 local gameManager, grid, levelManager
@@ -14,7 +14,6 @@ function love.load()
     grid = Grid.new()
     gameManager = GameManager.new(levelManager, grid)
 
-    -- Get initial window size and trigger resize calculation
     local w, h = love.graphics.getDimensions()
     gameManager:onResize(w, h)
 

@@ -104,11 +104,15 @@ function LevelManager.new()
                 { x = 6, y = 5, type = "mirror", state = "M2" },
                 { x = 7, y = 9, type = "target" },
                 -- Walls in alternating pattern
-                { x = 2, y = 2, type = "wall" }, { x = 4, y = 2, type = "wall" }, { x = 6, y = 2, type = "wall" }, { x = 8, y = 2, type = "wall" }, { x = 10, y = 2, type = "wall" },
-                { x = 2, y = 4, type = "wall" }, { x = 4, y = 4, type = "wall" }, { x = 6, y = 4, type = "wall" }, { x = 8, y = 4, type = "wall" }, { x = 10, y = 4, type = "wall" },
-                { x = 2, y = 6, type = "wall" }, { x = 4, y = 6, type = "wall" }, { x = 6, y = 6, type = "wall" }, { x = 8, y = 6, type = "wall" }, { x = 10, y = 6, type = "wall" },
-                { x = 2, y = 8,  type = "wall" }, { x = 4, y = 8, type = "wall" }, { x = 6, y = 8, type = "wall" }, { x = 8, y = 8, type = "wall" }, { x = 10, y = 8, type = "wall" },
-                { x = 2, y = 10, type = "wall" }, { x = 4, y = 10, type = "wall" }, { x = 6, y = 10, type = "wall" }, { x = 8, y = 10, type = "wall" }, { x = 10, y = 10, type = "wall" }
+                { x = 2, y = 2, type = "wall" }, { x = 4, y = 2, type = "wall" }, { x = 6, y = 2, type = "wall" },
+                { x = 8, y = 2, type = "wall" }, { x = 10, y = 2, type = "wall" }, { x = 2, y = 4, type = "wall" },
+                { x = 4, y = 4, type = "wall" }, { x = 6, y = 4, type = "wall" }, { x = 8, y = 4, type = "wall" },
+                { x = 10, y = 4, type = "wall" }, { x = 2, y = 6, type = "wall" }, { x = 4, y = 6, type = "wall" },
+                { x = 6,  y = 6, type = "wall" }, { x = 8, y = 6, type = "wall" }, { x = 10, y = 6, type = "wall" },
+                { x = 2, y = 8, type = "wall" }, { x = 4, y = 8, type = "wall" }, { x = 6, y = 8, type = "wall" },
+                { x = 8, y = 8, type = "wall" }, { x = 10, y = 8, type = "wall" }, { x = 2, y = 10, type = "wall" },
+                { x = 4,  y = 10, type = "wall" }, { x = 6, y = 10, type = "wall" }, { x = 8, y = 10, type = "wall" },
+                { x = 10, y = 10, type = "wall" }
             }
         }
     }
