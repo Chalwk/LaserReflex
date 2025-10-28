@@ -3,11 +3,11 @@
 -- License: MIT
 -- Copyright (c) 2025 Jericho Crosby (Chalwk)
 
-local GameManager = {}
-GameManager.__index = GameManager
+local Game = {}
+Game.__index = Game
 
-function GameManager.new(levelManager, grid)
-    local instance = setmetatable({}, GameManager)
+function Game.new(levelManager, grid)
+    local instance = setmetatable({}, Game)
 
     instance.levelManager = levelManager
     instance.grid = grid
@@ -18,18 +18,22 @@ function GameManager.new(levelManager, grid)
     return instance
 end
 
-function GameManager:loadLevel(levelIndex)
+function Game:loadLevel(levelIndex)
     self.currentLevel = levelIndex
     local levelData = self.levelManager:getLevel(levelIndex)
     self.grid:loadLevel(levelData)
     self.selected = { x = nil, y = nil }
 end
 
-function GameManager:onResize(w, h)
+function Game:onResize(w, h)
     self.grid:calculateTileSize(w, h)
 end
 
-function GameManager:draw()
+function Game:draw()
+
+    local screenWidth = love.graphics.getWidth()
+    local screenHeight = love.graphics.getHeight()
+
     love.graphics.clear(0.06, 0.06, 0.06)
 
     self.grid:draw()
@@ -39,18 +43,26 @@ function GameManager:draw()
 
     local levelName = self.levelManager:getLevelName(self.currentLevel)
     love.graphics.printf("LaserReflex - Level: (" .. self.currentLevel .. ") " .. levelName,
-        8, 6, love.graphics.getWidth() - 16, "center")
+        8, 6, screenWidth - 16, "center")
 
     local hitCount, totalTargets = self.grid:getTargetProgress()
     love.graphics.print(string.format("Targets: %d / %d", hitCount, totalTargets), 8, 28)
 
     if totalTargets > 0 and hitCount == totalTargets then
         love.graphics.setColor(0.8, 1, 0.6)
-        love.graphics.printf("All targets hit! Press N for next level.", 0, 48, love.graphics.getWidth(), "center")
+        love.graphics.printf("All targets hit! Press N for next level.", 0, 48, screenWidth, "center")
     end
+
+    love.graphics.setColor(1, 1, 1, 0.7)
+    love.graphics.printf(
+        "LaserReflex - Copyright (c) 2025 Jericho Crosby (Chalwk)",
+        0,
+        screenHeight - 30,
+        screenWidth,
+        "center")
 end
 
-function GameManager:onMousePressed(x, y, button)
+function Game:onMousePressed(x, y, button)
     local gx, gy = self.grid:screenToGrid(x, y)
     if not gx then return end
 
@@ -62,7 +74,7 @@ function GameManager:onMousePressed(x, y, button)
     end
 end
 
-function GameManager:onKeyPressed(key)
+function Game:onKeyPressed(key)
     if key == 'r' then
         self:loadLevel(self.currentLevel)
     elseif key == 'n' then
@@ -81,4 +93,4 @@ function GameManager:onKeyPressed(key)
     end
 end
 
-return GameManager
+return Game
