@@ -3,10 +3,11 @@
 -- License: MIT
 -- Copyright (c) 2025 Jericho Crosby (Chalwk)
 
-local Grid = require("classes/Grid")
-local Game = require("classes/Game")
+local Grid = require("classes.Grid")
+local Game = require("classes.Game")
+local Colors = require("classes.Colors")
 local LevelManager = require("classes.Levels")
-local SoundManager = require("classes/SoundManager")
+local SoundManager = require("classes.SoundManager")
 
 local game, grid, levelManager
 
@@ -14,8 +15,8 @@ function love.load()
     local soundManager = SoundManager.new()
     levelManager = LevelManager.new()
 
-    grid = Grid.new(soundManager)
-    game = Game.new(levelManager, grid, soundManager)
+    grid = Grid.new(soundManager, Colors)
+    game = Game.new(levelManager, grid, soundManager, Colors)
 
     local w, h = love.graphics.getDimensions()
     game:onResize(w, h)

@@ -10,7 +10,6 @@ local FOOTER_TEXT = "LaserReflex - Copyright (c) 2025 Jericho Crosby (Chalwk)"
 
 local string_format = string.format
 
-local graphics_clear = love.graphics.clear
 local love_print = love.graphics.print
 local love_printf = love.graphics.printf
 local setFont = love.graphics.setFont
@@ -19,7 +18,7 @@ local setColor = love.graphics.setColor
 local Game = {}
 Game.__index = Game
 
-function Game.new(levelManager, grid, soundManager)
+function Game.new(levelManager, grid, soundManager, colors)
     local instance = setmetatable({}, Game)
 
     instance.levelManager = levelManager
@@ -28,6 +27,7 @@ function Game.new(levelManager, grid, soundManager)
     instance.selected = { x = nil, y = nil }
     instance.font = love.graphics.newFont(14)
     instance.sounds = soundManager
+    instance.colors = colors
 
     return instance
 end
@@ -47,16 +47,13 @@ function Game:draw()
     local screenWidth = love.graphics.getWidth()
     local screenHeight = love.graphics.getHeight()
 
-    graphics_clear(0.06, 0.06, 0.06)
-
     self.grid:draw()
 
     setFont(self.font)
-    setColor(1, 1, 1)
+    setColor(1, 1, 1) -- this color is: white
 
     local levelName = self.levelManager:getLevelName(self.currentLevel)
     love_printf(string_format(HEADER_TEXT, self.currentLevel, levelName), 8, 6, screenWidth - 16, "center")
-
 
     local hitCount, totalTargets = self.grid:getTargetProgress()
 

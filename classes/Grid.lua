@@ -3,7 +3,7 @@
 -- License: MIT
 -- Copyright (c) 2025 Jericho Crosby (Chalwk)
 
-local ParticleSystem = require("classes/Particles")
+local ParticleSystem = require("classes.Particles")
 
 local math_max = math.max
 local math_min = math.min
@@ -27,7 +27,7 @@ local COLOR_OFF = { 1, 0, 0 }
 local Grid = {}
 Grid.__index = Grid
 
-function Grid.new(soundManager)
+function Grid.new(soundManager, colors)
     local instance = setmetatable({}, Grid)
 
     instance.grid = {}
@@ -40,6 +40,7 @@ function Grid.new(soundManager)
     instance.gridOffsetX, instance.gridOffsetY = 40, 40
 
     instance.sounds = soundManager
+    instance.colors = colors
 
     instance.particleSystem = ParticleSystem.new()
     instance.previouslyHit = {}
