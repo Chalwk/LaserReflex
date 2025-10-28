@@ -16,7 +16,7 @@ function LevelManager.new()
             size = { 9, 9 },
             map = {
                 { x = 3, y = 3, type = "laser",  dir = "right" },
-                { x = 6, y = 3, type = "mirror", state = "M2" },
+                { x = 6, y = 3, type = "mirror", state = "M3" },
                 { x = 6, y = 5, type = "target" }
             }
         },
@@ -27,11 +27,11 @@ function LevelManager.new()
             size = { 9, 9 },
             map = {
                 { x = 2, y = 2, type = "laser",  dir = "right" },
-                { x = 5, y = 2, type = "mirror", state = "M2" },
-                { x = 7, y = 3, type = "target" },
+                { x = 5, y = 2, type = "mirror", state = "M3" },
                 { x = 5, y = 7, type = "target" },
-                { x = 7, y = 7, type = "mirror", state = "M2" },
-                { x = 8, y = 7, type = "laser",  dir = "left" }
+                { x = 6, y = 3, type = "target" },
+                { x = 6, y = 7, type = "mirror", state = "M3" },
+                { x = 9, y = 7, type = "laser",  dir = "left" }
             }
         },
 
@@ -41,8 +41,8 @@ function LevelManager.new()
             size = { 9, 9 },
             map = {
                 { x = 2, y = 2, type = "laser",  dir = "right" },
-                { x = 6, y = 2, type = "mirror", state = "M2" },
-                { x = 6, y = 5, type = "mirror", state = "M2" },
+                { x = 6, y = 2, type = "mirror", state = "M3" },
+                { x = 6, y = 5, type = "mirror", state = "M3" },
                 { x = 7, y = 2, type = "wall" },
                 { x = 5, y = 3, type = "wall" },
                 { x = 5, y = 4, type = "wall" },
@@ -58,7 +58,7 @@ function LevelManager.new()
             size = { 9, 9 },
             map = {
                 { x = 2, y = 2, type = "laser",  dir = "right" },
-                { x = 5, y = 2, type = "mirror", state = "M2" },
+                { x = 5, y = 2, type = "mirror", state = "M3" },
                 { x = 3, y = 5, type = "target" },
                 { x = 7, y = 2, type = "wall" },
                 { x = 5, y = 3, type = "wall" },
@@ -75,7 +75,7 @@ function LevelManager.new()
             size = { 9, 9 },
             map = {
                 { x = 3, y = 3, type = "laser",  dir = "right" },
-                { x = 6, y = 3, type = "mirror", state = "M2" },
+                { x = 6, y = 3, type = "mirror", state = "M3" },
                 { x = 5, y = 7, type = "target" },
                 { x = 4, y = 5, type = "wall" },
                 { x = 7, y = 5, type = "wall" }
@@ -88,7 +88,7 @@ function LevelManager.new()
             size = { 11, 11 },
             map = {
                 { x = 4, y = 3, type = "laser",  dir = "right" },
-                { x = 6, y = 5, type = "mirror", state = "M2" },
+                { x = 6, y = 5, type = "mirror", state = "M3" },
                 { x = 3, y = 9, type = "target" },
                 { x = 8, y = 9, type = "target" },
                 { x = 4, y = 7, type = "wall" },
@@ -102,7 +102,7 @@ function LevelManager.new()
             size = { 11, 11 },
             map = {
                 { x = 2, y = 3, type = "laser",  dir = "right" },
-                { x = 6, y = 5, type = "mirror", state = "M2" },
+                { x = 6, y = 5, type = "mirror", state = "M3" },
                 { x = 7, y = 9, type = "target" },
                 { x = 2, y = 2, type = "wall" }, { x = 4, y = 2, type = "wall" }, { x = 6, y = 2, type = "wall" },
                 { x = 8, y = 2, type = "wall" }, { x = 10, y = 2, type = "wall" }, { x = 2, y = 4, type = "wall" },
