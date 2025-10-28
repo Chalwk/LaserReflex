@@ -73,6 +73,7 @@ function Grid.new(soundManager, colors)
             return nil
         end,
 
+        -- Blocking mirror
         M3 = function() return nil end
     }
 
