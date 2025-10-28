@@ -9,15 +9,15 @@ SoundManager.__index = SoundManager
 function SoundManager.new()
     local instance = setmetatable({
         sounds = {
-            win = love.audio.newSource("assets/sounds/win.mp3", "static"),
             rotate = love.audio.newSource("assets/sounds/rotate.mp3", "static"),
+            connect = love.audio.newSource("assets/sounds/connect.mp3", "static"),
             background = love.audio.newSource("assets/sounds/background.mp3", "stream")
         }
     }, SoundManager)
 
     instance:setVolume(instance.sounds.background, 0.5)
     instance:setVolume(instance.sounds.rotate, 1)
-    instance:setVolume(instance.sounds.win, 0.8)
+    instance:setVolume(instance.sounds.connect, 1)
 
     instance:play("background", true)
 

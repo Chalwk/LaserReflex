@@ -308,6 +308,7 @@ function Grid:computeBeams()
             local screenX = self.gridOffsetX + (x - 1) * self.tileSize + self.tileSize / 2
             local screenY = self.gridOffsetY + (y - 1) * self.tileSize + self.tileSize / 2
             self.particleSystem:emit(screenX, screenY, 15)
+            self.sounds:play("connect")
         end
     end
 
