@@ -46,10 +46,9 @@ end
 
 function Colors:setColor(name, alpha)
     local col = self.colors[name]
-    alpha = alpha or 1
     if col then
-        local r, g, b = col[1], col[2], col[3]
-        setColor(r, g, b, alpha)
+        local r, g, b, a = col[1], col[2], col[3], alpha or 1
+        setColor(r, g, b, a)
     else
         error("Color '" .. name .. "' not found")
     end
