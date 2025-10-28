@@ -96,7 +96,21 @@ function LevelManager.new()
             }
         },
 
-        -- Level 7: Maze-like structure
+        -- Level 7: Beam Splitter demonstration
+        {
+            name = "Beam Splitter",
+            size = { 9, 9 },
+            map = {
+                { x = 2, y = 5, type = "laser",  dir = "right" },
+                { x = 5, y = 5, type = "splitter" },
+                { x = 3, y = 3, type = "target" },
+                { x = 3, y = 7, type = "target" },
+                { x = 7, y = 3, type = "target" },
+                { x = 7, y = 7, type = "target" }
+            }
+        },
+
+        -- Level 8: Maze-like structure
         {
             name = "Mirror Maze",
             size = { 11, 11 },

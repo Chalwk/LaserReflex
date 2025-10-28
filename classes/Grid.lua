@@ -78,6 +78,15 @@ function Grid.new(soundManager)
         M4 = function(direction) return nil end  -- for a future update
     }
 
+    -- Beam Splitter: splits beam into perpendicular directions
+    instance.beamSplitter = function(direction)
+        if direction == 0 or direction == 2 then
+            return {1, 3} -- Up/Down -> Right/Left
+        else
+            return {0, 2} -- Right/Left -> Up/Down
+        end
+    end
+
     instance.mirrorStates = { "M1", "M2", "M3", "M4" }
 
     return instance
@@ -108,6 +117,8 @@ function Grid:loadLevel(levelData)
             self:setTile(obj.x, obj.y, 'T')
         elseif obj.type == "wall" then
             self:setTile(obj.x, obj.y, '#')
+        elseif obj.type == "splitter" then
+            self:setTile(obj.x, obj.y, 'S')
         end
     end
 
@@ -197,6 +208,94 @@ function Grid:computeBeams()
                 else
                     break
                 end
+            elseif ch == 'S' then
+                -- Beam Splitter: split into two perpendicular directions
+                self:addBeamSegment(x, y, d, -0.15, 0.15)
+
+                -- Get the two split directions
+                local splitDirs = self.beamSplitter(d)
+
+                -- Process first split beam
+                local d1 = splitDirs[1]
+                local x1, y1 = x + self.dirVecs[d1 + 1].x, y + self.dirVecs[d1 + 1].y
+                local visited1 = {}
+                for k, v in pairs(visited) do visited1[k] = v end
+
+                while self:inBounds(x1, y1) do
+                    local key1 = x1 .. "," .. y1 .. "," .. d1
+                    if visited1[key1] then break end
+                    visited1[key1] = true
+
+                    local ch1 = self:tileAt(x1, y1)
+                    if ch1 == '.' then
+                        self:addBeamSegment(x1, y1, d1, -0.45, 0.45)
+                    elseif ch1 == '#' then
+                        break
+                    elseif ch1 == 'T' then
+                        self:addBeamSegment(x1, y1, d1, -0.45, 0.0)
+                        currentHits[x1 .. "," .. y1] = true
+                        self.targetsHit[x1 .. "," .. y1] = true
+                        break
+                    elseif self.mirrorReflect[ch1] then
+                        self:addBeamSegment(x1, y1, d1, -0.15, 0.15)
+                        local newdir1 = self.mirrorReflect[ch1](d1)
+                        if newdir1 then
+                            d1 = newdir1
+                        else
+                            break
+                        end
+                    elseif ch1 == 'S' then
+                        -- Don't allow recursive splitting to prevent infinite loops
+                        break
+                    else
+                        break
+                    end
+
+                    x1 = x1 + self.dirVecs[d1 + 1].x
+                    y1 = y1 + self.dirVecs[d1 + 1].y
+                end
+
+                -- Process second split beam
+                local d2 = splitDirs[2]
+                local x2, y2 = x + self.dirVecs[d2 + 1].x, y + self.dirVecs[d2 + 1].y
+                local visited2 = {}
+                for k, v in pairs(visited) do visited2[k] = v end
+
+                while self:inBounds(x2, y2) do
+                    local key2 = x2 .. "," .. y2 .. "," .. d2
+                    if visited2[key2] then break end
+                    visited2[key2] = true
+
+                    local ch2 = self:tileAt(x2, y2)
+                    if ch2 == '.' then
+                        self:addBeamSegment(x2, y2, d2, -0.45, 0.45)
+                    elseif ch2 == '#' then
+                        break
+                    elseif ch2 == 'T' then
+                        self:addBeamSegment(x2, y2, d2, -0.45, 0.0)
+                        currentHits[x2 .. "," .. y2] = true
+                        self.targetsHit[x2 .. "," .. y2] = true
+                        break
+                    elseif self.mirrorReflect[ch2] then
+                        self:addBeamSegment(x2, y2, d2, -0.15, 0.15)
+                        local newdir2 = self.mirrorReflect[ch2](d2)
+                        if newdir2 then
+                            d2 = newdir2
+                        else
+                            break
+                        end
+                    elseif ch2 == 'S' then
+                        -- Don't allow recursive splitting to prevent infinite loops
+                        break
+                    else
+                        break
+                    end
+
+                    x2 = x2 + self.dirVecs[d2 + 1].x
+                    y2 = y2 + self.dirVecs[d2 + 1].y
+                end
+
+                break -- Original beam stops at splitter
             elseif self.charToDir[ch] then
                 self:addBeamSegment(x, y, d, -0.45, 0.45)
             else
@@ -364,6 +463,36 @@ function Grid:draw()
                     line(cx - self.tileSize * 0.3, cy + self.tileSize * 0.3,
                         cx + self.tileSize * 0.3, cy - self.tileSize * 0.3)
                 end
+                setLineWidth(1)
+            elseif ch == 'S' then
+                -- Beam Splitter: draw as a diamond shape with cross pattern
+                setColor(0.4, 0.8, 1.0, 0.9) -- Light blue color
+
+                -- Draw diamond shape
+                local r = self.tileSize * 0.25
+                polygon("fill",
+                    cx, cy - r,
+                    cx + r, cy,
+                    cx, cy + r,
+                    cx - r, cy
+                )
+
+                -- Draw cross pattern inside
+                setColor(1, 1, 1, 0.8)
+                setLineWidth(2)
+                line(cx - r*0.7, cy, cx + r*0.7, cy) -- Horizontal line
+                line(cx, cy - r*0.7, cx, cy + r*0.7) -- Vertical line
+                setLineWidth(1)
+
+                -- Outline
+                setColor(0.2, 0.5, 0.8)
+                setLineWidth(1.5)
+                polygon("line",
+                    cx, cy - r,
+                    cx + r, cy,
+                    cx, cy + r,
+                    cx - r, cy
+                )
                 setLineWidth(1)
             end
         end
