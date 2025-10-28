@@ -53,7 +53,7 @@ function Grid.new(soundManager)
 
     -- M1: Forward slash (/)
     -- M2: Backslash (\)
-    -- M3, M4: Alternative orientations (blocking or other behaviors)
+    -- M3: Blocking
     instance.mirrorReflect = {
         -- Forward slash (/): reflects 90 degrees
         M1 = function(direction)
@@ -73,21 +73,19 @@ function Grid.new(soundManager)
             return nil
         end,
 
-        -- Blocking mirrors (no reflection)
-        M3 = function(direction) return nil end, -- for a future update
-        M4 = function(direction) return nil end  -- for a future update
+        M3 = function() return nil end
     }
 
     -- Beam Splitter: splits beam into perpendicular directions
     instance.beamSplitter = function(direction)
         if direction == 0 or direction == 2 then
-            return {1, 3} -- Up/Down -> Right/Left
+            return { 1, 3 } -- Up/Down -> Right/Left
         else
-            return {0, 2} -- Right/Left -> Up/Down
+            return { 0, 2 } -- Right/Left -> Up/Down
         end
     end
 
-    instance.mirrorStates = { "M1", "M2", "M3", "M4" }
+    instance.mirrorStates = { "M1", "M2", "M3" }
 
     return instance
 end
@@ -239,11 +237,7 @@ function Grid:computeBeams()
                     elseif self.mirrorReflect[ch1] then
                         self:addBeamSegment(x1, y1, d1, -0.15, 0.15)
                         local newdir1 = self.mirrorReflect[ch1](d1)
-                        if newdir1 then
-                            d1 = newdir1
-                        else
-                            break
-                        end
+                        if newdir1 then d1 = newdir1 else break end
                     elseif ch1 == 'S' then
                         -- Don't allow recursive splitting to prevent infinite loops
                         break
@@ -269,8 +263,7 @@ function Grid:computeBeams()
                     local ch2 = self:tileAt(x2, y2)
                     if ch2 == '.' then
                         self:addBeamSegment(x2, y2, d2, -0.45, 0.45)
-                    elseif ch2 == '#' then
-                        break
+                    elseif ch2 == '#' then break
                     elseif ch2 == 'T' then
                         self:addBeamSegment(x2, y2, d2, -0.45, 0.0)
                         currentHits[x2 .. "," .. y2] = true
@@ -279,11 +272,7 @@ function Grid:computeBeams()
                     elseif self.mirrorReflect[ch2] then
                         self:addBeamSegment(x2, y2, d2, -0.15, 0.15)
                         local newdir2 = self.mirrorReflect[ch2](d2)
-                        if newdir2 then
-                            d2 = newdir2
-                        else
-                            break
-                        end
+                        if newdir2 then d2 = newdir2 else break end
                     elseif ch2 == 'S' then
                         -- Don't allow recursive splitting to prevent infinite loops
                         break
@@ -455,7 +444,7 @@ function Grid:draw()
                     -- Backslash (\)
                     line(cx - self.tileSize * 0.3, cy - self.tileSize * 0.3,
                         cx + self.tileSize * 0.3, cy + self.tileSize * 0.3)
-                elseif ch == "M3" or ch == "M4" then
+                elseif ch == "M3" then
                     setColor(0.5, 0.5, 0.5)
                     -- Blocking mirrors - draw as X
                     line(cx - self.tileSize * 0.3, cy - self.tileSize * 0.3,
@@ -480,8 +469,8 @@ function Grid:draw()
                 -- Draw cross pattern inside
                 setColor(1, 1, 1, 0.8)
                 setLineWidth(2)
-                line(cx - r*0.7, cy, cx + r*0.7, cy) -- Horizontal line
-                line(cx, cy - r*0.7, cx, cy + r*0.7) -- Vertical line
+                line(cx - r * 0.7, cy, cx + r * 0.7, cy) -- Horizontal line
+                line(cx, cy - r * 0.7, cx, cy + r * 0.7) -- Vertical line
                 setLineWidth(1)
 
                 -- Outline
