@@ -54,7 +54,6 @@ function Particle:update(dt)
 end
 
 function Particle:draw()
-    setColor(1, 1, 1)
     for _, p in ipairs(self.particles) do
         local alpha = p.life / p.maxLife
         setColor(p.color[1], p.color[2], p.color[3], alpha)

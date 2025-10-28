@@ -20,6 +20,10 @@ local circle = love.graphics.circle
 local polygon = love.graphics.polygon
 local line = love.graphics.line
 
+-- Target state colors (on / off)
+local COLOR_ON = { 0 / 255, 255 / 255, 68 / 255 }
+local COLOR_OFF = { 1, 0, 0 }
+
 local Grid = {}
 Grid.__index = Grid
 
@@ -263,7 +267,8 @@ function Grid:computeBeams()
                     local ch2 = self:tileAt(x2, y2)
                     if ch2 == '.' then
                         self:addBeamSegment(x2, y2, d2, -0.45, 0.45)
-                    elseif ch2 == '#' then break
+                    elseif ch2 == '#' then
+                        break
                     elseif ch2 == 'T' then
                         self:addBeamSegment(x2, y2, d2, -0.45, 0.0)
                         currentHits[x2 .. "," .. y2] = true
@@ -370,8 +375,6 @@ function Grid:draw()
                 local hit = self.targetsHit[x .. "," .. y]
 
                 -- Colors
-                local colorOn = { 0 / 255, 255 / 255, 68 / 255 }
-                local colorOff = { 1, 0, 0 }
                 local glowColor = hit and { 0 / 255, 255 / 255, 100 / 255, 0.4 } or { 1, 0, 0, 0.3 }
 
                 -- Center and size
@@ -387,7 +390,7 @@ function Grid:draw()
                 circle("fill", cx, cy, glowRadius * pulse)
 
                 -- Main target body
-                setColor(hit and colorOn or colorOff)
+                setColor(hit and COLOR_ON or COLOR_OFF)
                 circle("fill", cx, cy, r)
 
                 -- Inner ring highlight

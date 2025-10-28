@@ -3,6 +3,19 @@
 -- License: MIT
 -- Copyright (c) 2025 Jericho Crosby (Chalwk)
 
+local HEADER_TEXT = "LaserReflex - Level: (%d) %s"
+local WIN_TEXT = "All targets hit! Press N for next level."
+local SIDE_TEXT = "Targets: %d / %d"
+local FOOTER_TEXT = "LaserReflex - Copyright (c) 2025 Jericho Crosby (Chalwk)"
+
+local string_format = string.format
+
+local graphics_clear = love.graphics.clear
+local love_print = love.graphics.print
+local love_printf = love.graphics.printf
+local setFont = love.graphics.setFont
+local setColor = love.graphics.setColor
+
 local Game = {}
 Game.__index = Game
 
@@ -34,19 +47,20 @@ function Game:draw()
     local screenWidth = love.graphics.getWidth()
     local screenHeight = love.graphics.getHeight()
 
-    love.graphics.clear(0.06, 0.06, 0.06)
+    graphics_clear(0.06, 0.06, 0.06)
 
     self.grid:draw()
 
-    love.graphics.setFont(self.font)
-    love.graphics.setColor(1, 1, 1)
+    setFont(self.font)
+    setColor(1, 1, 1)
 
     local levelName = self.levelManager:getLevelName(self.currentLevel)
-    love.graphics.printf("LaserReflex - Level: (" .. self.currentLevel .. ") " .. levelName,
-        8, 6, screenWidth - 16, "center")
+    love_printf(string_format(HEADER_TEXT, self.currentLevel, levelName), 8, 6, screenWidth - 16, "center")
+
 
     local hitCount, totalTargets = self.grid:getTargetProgress()
-    love.graphics.print(string.format("Targets: %d / %d", hitCount, totalTargets), 8, 28)
+
+    love_print(string_format(SIDE_TEXT, hitCount, totalTargets), 8, 28)
 
     -- Update winning state based on current progress
     if totalTargets > 0 and hitCount == totalTargets then
@@ -56,17 +70,12 @@ function Game:draw()
     end
 
     if self.winningState then
-        love.graphics.setColor(0.8, 1, 0.6)
-        love.graphics.printf("All targets hit! Press N for next level.", 0, 48, screenWidth, "center")
+        setColor(0.8, 1, 0.6)
+        love_printf(string_format(WIN_TEXT), 0, 48, screenWidth, "center")
     end
 
-    love.graphics.setColor(1, 1, 1, 0.7)
-    love.graphics.printf(
-        "LaserReflex - Copyright (c) 2025 Jericho Crosby (Chalwk)",
-        0,
-        screenHeight - 30,
-        screenWidth,
-        "center")
+    setColor(1, 1, 1, 0.7)
+    love_printf(string_format(FOOTER_TEXT), 0, screenHeight - 30, screenWidth, "center")
 end
 
 function Game:update(dt)

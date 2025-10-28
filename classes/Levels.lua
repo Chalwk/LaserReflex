@@ -101,7 +101,7 @@ function LevelManager.new()
             name = "Beam Splitter",
             size = { 9, 9 },
             map = {
-                { x = 2, y = 5, type = "laser",  dir = "right" },
+                { x = 2, y = 5, type = "laser",   dir = "right" },
                 { x = 5, y = 5, type = "splitter" },
                 { x = 3, y = 3, type = "target" },
                 { x = 3, y = 7, type = "target" },
