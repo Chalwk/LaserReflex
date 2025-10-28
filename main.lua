@@ -28,6 +28,10 @@ function love.draw()
     gameManager:draw()
 end
 
+function love.update(dt)
+    gameManager:update(dt)
+end
+
 function love.mousepressed(x, y, button)
     gameManager:onMousePressed(x, y, button)
 end

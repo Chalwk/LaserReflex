@@ -3,6 +3,8 @@
 -- License: MIT
 -- Copyright (c) 2025 Jericho Crosby (Chalwk)
 
+local ParticleSystem = require("classes/Particles")
+
 local math_max = math.max
 local math_min = math.min
 local math_floor = math.floor
@@ -33,6 +35,9 @@ function Grid.new()
     instance.gw, instance.gh = 9, 9
     instance.tileSize = 48
     instance.gridOffsetX, instance.gridOffsetY = 40, 40
+
+    instance.particleSystem = ParticleSystem.new()
+    instance.previouslyHit = {}
 
     -- Directions: 0=up, 1=right, 2=down, 3=left
     instance.dirVecs = {
@@ -80,6 +85,7 @@ end
 function Grid:loadLevel(levelData)
     self.gw, self.gh = levelData.size[1], levelData.size[2]
     self.grid, self.lasers, self.beams, self.targetsHit = {}, {}, {}, {}
+    self.previouslyHit = {}
 
     -- Initialize empty grid
     for y = 1, self.gh do
@@ -154,7 +160,7 @@ end
 
 function Grid:computeBeams()
     self.beams = {}
-    self.targetsHit = {}
+    local currentHits = {} -- Track hits in current frame
 
     for _, src in ipairs(self.lasers) do
         local sx, sy, sd = src.x, src.y, src.d
@@ -172,27 +178,23 @@ function Grid:computeBeams()
 
             local ch = self:tileAt(x, y)
             if ch == '.' then
-                -- Normal empty tile: beam spans a bit past center both ways
                 self:addBeamSegment(x, y, d, -0.45, 0.45)
             elseif ch == '#' then
                 break
             elseif ch == 'T' then
-                -- For target tiles, stop the beam at the tile center.
-                -- Draw from incoming edge toward center but do not continue past center.
                 self:addBeamSegment(x, y, d, -0.45, 0.0)
+                currentHits[x .. "," .. y] = true
                 self.targetsHit[x .. "," .. y] = true
                 break
             elseif self.mirrorReflect[ch] then
-                -- Mirror: small segment centered on tile, then change direction
                 self:addBeamSegment(x, y, d, -0.15, 0.15)
                 local newdir = self.mirrorReflect[ch](d)
                 if newdir then
                     d = newdir
                 else
-                    break -- blocked mirror
+                    break
                 end
             elseif self.charToDir[ch] then
-                -- Laser tile or other emitter: draw symmetric segment
                 self:addBeamSegment(x, y, d, -0.45, 0.45)
             else
                 break
@@ -202,6 +204,20 @@ function Grid:computeBeams()
             y = y + self.dirVecs[d + 1].y
         end
     end
+
+    -- Check for newly hit targets and emit particles
+    for coord, _ in pairs(currentHits) do
+        if not self.previouslyHit[coord] then
+            -- This target was just hit - emit particles!
+            local x, y = coord:match("(%d+),(%d+)")
+            x, y = tonumber(x), tonumber(y)
+            local screenX = self.gridOffsetX + (x - 1) * self.tileSize + self.tileSize / 2
+            local screenY = self.gridOffsetY + (y - 1) * self.tileSize + self.tileSize / 2
+            self.particleSystem:emit(screenX, screenY, 15)
+        end
+    end
+
+    self.previouslyHit = currentHits
 end
 
 function Grid:getTargetProgress()
@@ -303,6 +319,12 @@ function Grid:draw()
             end
         end
     end
+
+    self.particleSystem:draw()
+end
+
+function Grid:update(dt)
+    self.particleSystem:update(dt)
 end
 
 return Grid

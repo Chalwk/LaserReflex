@@ -30,7 +30,6 @@ function Game:onResize(w, h)
 end
 
 function Game:draw()
-
     local screenWidth = love.graphics.getWidth()
     local screenHeight = love.graphics.getHeight()
 
@@ -60,6 +59,10 @@ function Game:draw()
         screenHeight - 30,
         screenWidth,
         "center")
+end
+
+function Game:update(dt)
+    self.grid:update(dt)
 end
 
 function Game:onMousePressed(x, y, button)
