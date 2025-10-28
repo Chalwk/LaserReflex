@@ -132,8 +132,8 @@ function Grid:rotateMirror(x, y, delta)
     end
 end
 
-function Grid:addBeamSegment(x, y, d, length)
-    table.insert(self.beams, { x = x, y = y, d = d, length = length })
+function Grid:addBeamSegment(x, y, d, startFrac, endFrac)
+    table.insert(self.beams, { x = x, y = y, d = d, startFrac = startFrac, endFrac = endFrac })
 end
 
 function Grid:computeBeams()
@@ -156,15 +156,19 @@ function Grid:computeBeams()
 
             local ch = self:tileAt(x, y)
             if ch == '.' then
-                self:addBeamSegment(x, y, d, 0.45)
+                -- Normal empty tile: beam spans a bit past center both ways
+                self:addBeamSegment(x, y, d, -0.45, 0.45)
             elseif ch == '#' then
                 break
             elseif ch == 'T' then
-                self:addBeamSegment(x, y, d, 0.45)
+                -- For target tiles, stop the beam at the tile center.
+                -- Draw from incoming edge toward center but do not continue past center.
+                self:addBeamSegment(x, y, d, -0.45, 0.0)
                 self.targetsHit[x .. "," .. y] = true
                 break
             elseif self.mirrorReflect[ch] then
-                self:addBeamSegment(x, y, d, 0.15)
+                -- Mirror: small segment centered on tile, then change direction
+                self:addBeamSegment(x, y, d, -0.15, 0.15)
                 local newdir = self.mirrorReflect[ch](d)
                 if newdir then
                     d = newdir
@@ -172,7 +176,8 @@ function Grid:computeBeams()
                     break -- blocked mirror
                 end
             elseif self.charToDir[ch] then
-                self:addBeamSegment(x, y, d, 0.45)
+                -- Laser tile or other emitter: draw symmetric segment
+                self:addBeamSegment(x, y, d, -0.45, 0.45)
             else
                 break
             end
@@ -207,6 +212,25 @@ function Grid:draw()
         end
     end
 
+    -- Draw beams first
+    for _, b in ipairs(self.beams) do
+        local sx = self.gridOffsetX + (b.x - 1) * self.tileSize
+        local sy = self.gridOffsetY + (b.y - 1) * self.tileSize
+        local cx = sx + self.tileSize / 2
+        local cy = sy + self.tileSize / 2
+        local d = b.d
+        local dir = self.dirVecs[d + 1]
+        local ox_start = dir.x * self.tileSize * b.startFrac
+        local oy_start = dir.y * self.tileSize * b.startFrac
+        local ox_end = dir.x * self.tileSize * b.endFrac
+        local oy_end = dir.y * self.tileSize * b.endFrac
+
+        love.graphics.setColor(0.6, 1.0, 0.2, 0.95)
+        love.graphics.setLineWidth(2)
+        love.graphics.line(cx + ox_start, cy + oy_start, cx + ox_end, cy + oy_end)
+        love.graphics.setLineWidth(1)
+    end
+
     -- Draw tiles
     for y = 1, self.gh do
         for x = 1, self.gw do
@@ -221,7 +245,7 @@ function Grid:draw()
                 love.graphics.rectangle("fill", sx + 4, sy + 4, self.tileSize - 8, self.tileSize - 8)
             elseif ch == 'T' then
                 local hit = self.targetsHit[x .. "," .. y]
-                love.graphics.setColor(hit and { 0.65, 0.95, 0.55 } or { 0.4, 0.95, 0.4 })
+                love.graphics.setColor(hit and { 0 / 255, 255 / 255, 68 / 255 } or { 255, 0, 0 })
                 love.graphics.circle("fill", cx, cy, self.tileSize * 0.22)
                 love.graphics.setColor(0, 0, 0, 0.6)
                 love.graphics.circle("line", cx, cy, self.tileSize * 0.22)
@@ -262,21 +286,6 @@ function Grid:draw()
                 love.graphics.setLineWidth(1)
             end
         end
-    end
-
-    -- Draw beams
-    for _, b in ipairs(self.beams) do
-        local sx = self.gridOffsetX + (b.x - 1) * self.tileSize
-        local sy = self.gridOffsetY + (b.y - 1) * self.tileSize
-        local cx = sx + self.tileSize / 2
-        local cy = sy + self.tileSize / 2
-        local d = b.d
-        local ox = self.dirVecs[d + 1].x * self.tileSize * b.length
-        local oy = self.dirVecs[d + 1].y * self.tileSize * b.length
-        love.graphics.setColor(0.6, 1.0, 0.2, 0.95)
-        love.graphics.setLineWidth(4)
-        love.graphics.line(cx - ox, cy - oy, cx + ox, cy + oy)
-        love.graphics.setLineWidth(1)
     end
 end
 
