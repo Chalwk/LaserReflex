@@ -4,8 +4,8 @@
 -- Copyright (c) 2025 Jericho Crosby (Chalwk)
 
 local Grid = require("classes/Grid")
-local GameManager = require("classes/GameManager")
-local LevelManager = require("classes/LevelManager")
+local GameManager = require("classes/Game")
+local LevelManager = require("classes/Levels")
 
 local gameManager, grid, levelManager
 
