@@ -7,6 +7,7 @@ local ParticleSystem = require("classes/Particles")
 
 local math_max = math.max
 local math_min = math.min
+local math_sin = math.sin
 local math_floor = math.floor
 local table_insert = table.insert
 local pairs = pairs
@@ -279,24 +280,70 @@ function Grid:draw()
                 rectangle("fill", sx + 4, sy + 4, self.tileSize - 8, self.tileSize - 8)
             elseif ch == 'T' then
                 local hit = self.targetsHit[x .. "," .. y]
-                setColor(hit and { 0 / 255, 255 / 255, 68 / 255 } or { 255, 0, 0 })
-                circle("fill", cx, cy, self.tileSize * 0.22)
+
+                -- Colors
+                local colorOn = { 0 / 255, 255 / 255, 68 / 255 }
+                local colorOff = { 1, 0, 0 }
+                local glowColor = hit and { 0 / 255, 255 / 255, 100 / 255, 0.4 } or { 1, 0, 0, 0.3 }
+
+                -- Center and size
+                local r = self.tileSize * 0.22
+
+                -- Glow pulse (animated with time)
+                local t = love.timer.getTime()
+                local pulse = 0.8 + 0.2 * math_sin(t * 6)
+                local glowRadius = r * (1.3 + 0.1 * math_sin(t * 3))
+
+                -- Outer glow
+                setColor(glowColor)
+                circle("fill", cx, cy, glowRadius * pulse)
+
+                -- Main target body
+                setColor(hit and colorOn or colorOff)
+                circle("fill", cx, cy, r)
+
+                -- Inner ring highlight
+                setColor(1, 1, 1, 0.2)
+                setLineWidth(2)
+                circle("line", cx, cy, r * 0.65)
+                circle("line", cx, cy, r * 0.4)
+
+                -- Black outline
                 setColor(0, 0, 0, 0.6)
-                circle("line", cx, cy, self.tileSize * 0.22)
+                setLineWidth(1.5)
+                circle("line", cx, cy, r)
             elseif self.charToDir[ch] then
-                setColor(1.0, 0.9, 0.3)
-                rectangle("fill", cx - 6, cy - 6, 12, 12)
-                setColor(0.06, 0.06, 0.06)
                 local d = self.charToDir[ch]
+
+                -- Base body (metallic turret)
+                setColor(0.15, 0.15, 0.17)
+                circle("fill", cx, cy, self.tileSize * 0.25)
+                setColor(0.4, 0.4, 0.45)
+                circle("line", cx, cy, self.tileSize * 0.25)
+
+                -- Inner glowing core
+                setColor(1.0, 0.95, 0.4, 0.9)
+                circle("fill", cx, cy, self.tileSize * 0.12)
+
+                -- Directional nozzle
+                setColor(1.0, 0.85, 0.2)
+                local nozzleLength = self.tileSize * 0.22
+                local nozzleWidth = self.tileSize * 0.09
                 if d == 0 then
-                    polygon("fill", cx, cy - 10, cx - 6, cy + 4, cx + 6, cy + 4)
+                    polygon("fill", cx, cy - nozzleLength, cx - nozzleWidth, cy, cx + nozzleWidth, cy)
                 elseif d == 1 then
-                    polygon("fill", cx + 10, cy, cx - 4, cy - 6, cx - 4, cy + 6)
+                    polygon("fill", cx + nozzleLength, cy, cx, cy - nozzleWidth, cx, cy + nozzleWidth)
                 elseif d == 2 then
-                    polygon("fill", cx, cy + 10, cx - 6, cy - 4, cx + 6, cy - 4)
+                    polygon("fill", cx, cy + nozzleLength, cx - nozzleWidth, cy, cx + nozzleWidth, cy)
                 elseif d == 3 then
-                    polygon("fill", cx - 10, cy, cx + 4, cy - 6, cx + 4, cy + 6)
+                    polygon("fill", cx - nozzleLength, cy, cx, cy - nozzleWidth, cx, cy + nozzleWidth)
                 end
+
+                -- Glow ring
+                setColor(1.0, 0.95, 0.4, 0.3)
+                setLineWidth(3)
+                circle("line", cx, cy, self.tileSize * 0.28)
+                setLineWidth(1)
             elseif self.mirrorReflect[ch] then
                 setLineWidth(3)
                 if ch == "M1" then
