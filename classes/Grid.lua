@@ -323,16 +323,148 @@ function Grid:getTargetProgress()
     return hitCount, totalTargets
 end
 
+local function drawGrid(self, sx, sy)
+    self.colors:setColor("moonlit_charcoal", 1)
+    rectangle("fill", sx, sy, self.tileSize - 1, self.tileSize - 1)
+    self.colors:setColor("neutral_grey", 1)
+    rectangle("line", sx, sy, self.tileSize - 1, self.tileSize - 1)
+end
+
+local function drawForwardSlash(self, cx, cy)
+    self.colors:setColor("silver", 1)
+    line(cx - self.tileSize * 0.3, cy + self.tileSize * 0.3,
+        cx + self.tileSize * 0.3, cy - self.tileSize * 0.3)
+end
+
+local function drawBackSlash(self, cx, cy)
+    self.colors:setColor("silver", 1)
+    line(cx - self.tileSize * 0.3, cy - self.tileSize * 0.3,
+        cx + self.tileSize * 0.3, cy + self.tileSize * 0.3)
+end
+
+local function drawX(self, cx, cy)
+    self.colors:setColor("medium_grey", 1)
+    line(cx - self.tileSize * 0.3, cy - self.tileSize * 0.3,
+        cx + self.tileSize * 0.3, cy + self.tileSize * 0.3)
+    line(cx - self.tileSize * 0.3, cy + self.tileSize * 0.3,
+        cx + self.tileSize * 0.3, cy - self.tileSize * 0.3)
+end
+
+local function drawSplitter(self, cx, cy)
+    self.colors:setColor("light_blue", 0.9)
+
+    -- Draw diamond shape
+    local r = self.tileSize * 0.25
+    polygon("fill",
+        cx, cy - r,
+        cx + r, cy,
+        cx, cy + r,
+        cx - r, cy
+    )
+
+    -- Draw cross pattern inside
+    self.colors:setColor("white", 0.8)
+    setLineWidth(2)
+    line(cx - r * 0.7, cy, cx + r * 0.7, cy) -- Horizontal line
+    line(cx, cy - r * 0.7, cx, cy + r * 0.7) -- Vertical line
+    setLineWidth(1)
+
+    -- Outline
+    self.colors:setColor("medium_blue", 1)
+    setLineWidth(1.5)
+    polygon("line",
+        cx, cy - r,
+        cx + r, cy,
+        cx, cy + r,
+        cx - r, cy
+    )
+    setLineWidth(1)
+end
+
+local function drawBeam(self, cx, cy, ox_start, oy_start, ox_end, oy_end)
+    self.colors:setColor("lime_green", 0.95)
+    setLineWidth(2)
+    line(cx + ox_start, cy + oy_start, cx + ox_end, cy + oy_end)
+    setLineWidth(1)
+end
+
+local function drawWall(self, sx, sy)
+    self.colors:setColor("charcoal_gray", 1)
+    rectangle("fill", sx + 4, sy + 4, self.tileSize - 8, self.tileSize - 8)
+end
+
+local function drawTarget(self, cx, cy, x, y)
+    local hit = self.targetsHit[x .. "," .. y]
+
+    -- Center and size
+    local r = self.tileSize * 0.22
+
+    -- Glow pulse (animated with time)
+    local t = love.timer.getTime()
+    local pulse = 0.8 + 0.2 * math_sin(t * 6)
+    local glowRadius = r * (1.3 + 0.1 * math_sin(t * 3))
+
+    -- Outer glow
+    self.colors:setColor(hit and "neon_green_glow" or "red_glow", 0.4)
+    circle("fill", cx, cy, glowRadius * pulse)
+
+    -- Main target body
+    self.colors:setColor(hit and "neon_green" or "red", 1)
+    circle("fill", cx, cy, r)
+
+    -- Inner ring highlight
+    self.colors:setColor("white_highlight", 0.2)
+    setLineWidth(2)
+    circle("line", cx, cy, r * 0.65)
+    circle("line", cx, cy, r * 0.4)
+
+    -- Black outline
+    self.colors:setColor("black_outline", 0.6)
+    setLineWidth(1.5)
+    circle("line", cx, cy, r)
+end
+
+local function drawLaser(self, ch, cx, cy)
+    local d = self.charToDir[ch]
+
+    -- Base body (metallic turret)
+    self.colors:setColor("dark_grey", 1)
+    circle("fill", cx, cy, self.tileSize * 0.25)
+    self.colors:setColor("soft_steel", 1)
+    circle("line", cx, cy, self.tileSize * 0.25)
+
+    -- Inner glowing core
+    self.colors:setColor("pastel_yellow", 0.9)
+    circle("fill", cx, cy, self.tileSize * 0.12)
+
+    -- Directional nozzle
+    self.colors:setColor("golden_yellow", 1)
+    local nozzleLength = self.tileSize * 0.22
+    local nozzleWidth = self.tileSize * 0.09
+    if d == 0 then
+        polygon("fill", cx, cy - nozzleLength, cx - nozzleWidth, cy, cx + nozzleWidth, cy)
+    elseif d == 1 then
+        polygon("fill", cx + nozzleLength, cy, cx, cy - nozzleWidth, cx, cy + nozzleWidth)
+    elseif d == 2 then
+        polygon("fill", cx, cy + nozzleLength, cx - nozzleWidth, cy, cx + nozzleWidth, cy)
+    elseif d == 3 then
+        polygon("fill", cx - nozzleLength, cy, cx, cy - nozzleWidth, cx, cy + nozzleWidth)
+    end
+
+    -- Glow ring
+    self.colors:setColor("golden_wheat", 0.3)
+    setLineWidth(3)
+    circle("line", cx, cy, self.tileSize * 0.28)
+    setLineWidth(1)
+end
+
 function Grid:draw()
     -- Draw grid background
     for y = 1, self.gh do
         for x = 1, self.gw do
             local sx = self.gridOffsetX + (x - 1) * self.tileSize
             local sy = self.gridOffsetY + (y - 1) * self.tileSize
-            self.colors:setColor("moonlit_charcoal", 1)
-            rectangle("fill", sx, sy, self.tileSize - 1, self.tileSize - 1)
-            self.colors:setColor("neutral_grey", 1)
-            rectangle("line", sx, sy, self.tileSize - 1, self.tileSize - 1)
+            drawGrid(self, sx, sy)
         end
     end
 
@@ -349,10 +481,7 @@ function Grid:draw()
         local ox_end = dir.x * self.tileSize * b.endFrac
         local oy_end = dir.y * self.tileSize * b.endFrac
 
-        self.colors:setColor("lime_green", 0.95)
-        setLineWidth(2)
-        line(cx + ox_start, cy + oy_start, cx + ox_end, cy + oy_end)
-        setLineWidth(1)
+        drawBeam(self, cx, cy, ox_start, oy_start, ox_end, oy_end)
     end
 
     -- Draw tiles
@@ -365,120 +494,23 @@ function Grid:draw()
             local cy = sy + self.tileSize / 2
 
             if ch == '#' then
-                self.colors:setColor("charcoal_gray", 1)
-                rectangle("fill", sx + 4, sy + 4, self.tileSize - 8, self.tileSize - 8)
+                drawWall(self, sx, sy)
             elseif ch == 'T' then
-                local hit = self.targetsHit[x .. "," .. y]
-
-                -- Center and size
-                local r = self.tileSize * 0.22
-
-                -- Glow pulse (animated with time)
-                local t = love.timer.getTime()
-                local pulse = 0.8 + 0.2 * math_sin(t * 6)
-                local glowRadius = r * (1.3 + 0.1 * math_sin(t * 3))
-
-                -- Outer glow
-                self.colors:setColor(hit and "neon_green_glow" or "red_glow", 0.4)
-                circle("fill", cx, cy, glowRadius * pulse)
-
-                -- Main target body
-                self.colors:setColor(hit and "neon_green" or "red", 1)
-                circle("fill", cx, cy, r)
-
-                -- Inner ring highlight
-                self.colors:setColor("white_highlight", 0.2)
-                setLineWidth(2)
-                circle("line", cx, cy, r * 0.65)
-                circle("line", cx, cy, r * 0.4)
-
-                -- Black outline
-                self.colors:setColor("black_outline", 0.6)
-                setLineWidth(1.5)
-                circle("line", cx, cy, r)
+                drawTarget(self, cx, cy, x, y)
             elseif self.charToDir[ch] then
-                local d = self.charToDir[ch]
-
-                -- Base body (metallic turret)
-                self.colors:setColor("dark_grey", 1)
-                circle("fill", cx, cy, self.tileSize * 0.25)
-                self.colors:setColor("soft_steel", 1)
-                circle("line", cx, cy, self.tileSize * 0.25)
-
-                -- Inner glowing core
-                self.colors:setColor("pastel_yellow", 0.9)
-                circle("fill", cx, cy, self.tileSize * 0.12)
-
-                -- Directional nozzle
-                self.colors:setColor("golden_yellow", 1)
-                local nozzleLength = self.tileSize * 0.22
-                local nozzleWidth = self.tileSize * 0.09
-                if d == 0 then
-                    polygon("fill", cx, cy - nozzleLength, cx - nozzleWidth, cy, cx + nozzleWidth, cy)
-                elseif d == 1 then
-                    polygon("fill", cx + nozzleLength, cy, cx, cy - nozzleWidth, cx, cy + nozzleWidth)
-                elseif d == 2 then
-                    polygon("fill", cx, cy + nozzleLength, cx - nozzleWidth, cy, cx + nozzleWidth, cy)
-                elseif d == 3 then
-                    polygon("fill", cx - nozzleLength, cy, cx, cy - nozzleWidth, cx, cy + nozzleWidth)
-                end
-
-                -- Glow ring
-                self.colors:setColor("golden_wheat", 0.3)
-                setLineWidth(3)
-                circle("line", cx, cy, self.tileSize * 0.28)
-                setLineWidth(1)
+                drawLaser(self, ch, cx, cy)
             elseif self.mirrorReflect[ch] then
                 setLineWidth(3)
                 if ch == "M1" then
-                    self.colors:setColor("silver", 1)
-                    -- Forward slash (/)
-                    line(cx - self.tileSize * 0.3, cy + self.tileSize * 0.3,
-                        cx + self.tileSize * 0.3, cy - self.tileSize * 0.3)
+                    drawForwardSlash(self, cx, cy)
                 elseif ch == "M2" then
-                    self.colors:setColor("silver", 1)
-                    -- Backslash (\)
-                    line(cx - self.tileSize * 0.3, cy - self.tileSize * 0.3,
-                        cx + self.tileSize * 0.3, cy + self.tileSize * 0.3)
+                    drawBackSlash(self, cx, cy)
                 elseif ch == "M3" then
-                    self.colors:setColor("medium_grey", 1)
-                    -- Blocking mirrors - draw as X
-                    line(cx - self.tileSize * 0.3, cy - self.tileSize * 0.3,
-                        cx + self.tileSize * 0.3, cy + self.tileSize * 0.3)
-                    line(cx - self.tileSize * 0.3, cy + self.tileSize * 0.3,
-                        cx + self.tileSize * 0.3, cy - self.tileSize * 0.3)
+                    drawX(self, cx, cy)
                 end
                 setLineWidth(1)
             elseif ch == 'S' then
-                -- Beam Splitter: draw as a diamond shape with cross pattern
-                self.colors:setColor("light_blue", 0.9)
-
-                -- Draw diamond shape
-                local r = self.tileSize * 0.25
-                polygon("fill",
-                    cx, cy - r,
-                    cx + r, cy,
-                    cx, cy + r,
-                    cx - r, cy
-                )
-
-                -- Draw cross pattern inside
-                self.colors:setColor("white", 0.8)
-                setLineWidth(2)
-                line(cx - r * 0.7, cy, cx + r * 0.7, cy) -- Horizontal line
-                line(cx, cy - r * 0.7, cx, cy + r * 0.7) -- Vertical line
-                setLineWidth(1)
-
-                -- Outline
-                self.colors:setColor("medium_blue", 1)
-                setLineWidth(1.5)
-                polygon("line",
-                    cx, cy - r,
-                    cx + r, cy,
-                    cx, cy + r,
-                    cx - r, cy
-                )
-                setLineWidth(1)
+                drawSplitter(self, cx, cy)
             end
         end
     end
