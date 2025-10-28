@@ -5,7 +5,7 @@
 
 local Grid = require("classes/Grid")
 local GameManager = require("classes/Game")
-local LevelManager = require("classes/Levels")
+local LevelManager = require("classes.Levels")
 
 local gameManager, grid, levelManager
 
