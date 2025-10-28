@@ -13,7 +13,6 @@ local string_format = string.format
 local love_print = love.graphics.print
 local love_printf = love.graphics.printf
 local setFont = love.graphics.setFont
-local setColor = love.graphics.setColor
 
 local Game = {}
 Game.__index = Game
@@ -50,7 +49,7 @@ function Game:draw()
     self.grid:draw()
 
     setFont(self.font)
-    setColor(1, 1, 1) -- this color is: white
+    self.colors:setColor("white")
 
     local levelName = self.levelManager:getLevelName(self.currentLevel)
     love_printf(string_format(HEADER_TEXT, self.currentLevel, levelName), 8, 6, screenWidth - 16, "center")
@@ -67,11 +66,11 @@ function Game:draw()
     end
 
     if self.winningState then
-        setColor(0.8, 1, 0.6)
+        self.colors:setColor("neon_green_glow")
         love_printf(string_format(WIN_TEXT), 0, 48, screenWidth, "center")
     end
 
-    setColor(1, 1, 1, 0.7)
+    self.colors:setColor("white", 0.7)
     love_printf(string_format(FOOTER_TEXT), 0, screenHeight - 30, screenWidth, "center")
 end
 

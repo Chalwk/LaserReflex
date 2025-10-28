@@ -14,15 +14,10 @@ local pairs = pairs
 local ipairs = ipairs
 
 local setLineWidth = love.graphics.setLineWidth
-local setColor = love.graphics.setColor
 local rectangle = love.graphics.rectangle
 local circle = love.graphics.circle
 local polygon = love.graphics.polygon
 local line = love.graphics.line
-
--- Target state colors (on / off)
-local COLOR_ON = { 0 / 255, 255 / 255, 68 / 255 }
-local COLOR_OFF = { 1, 0, 0 }
 
 local Grid = {}
 Grid.__index = Grid
@@ -334,9 +329,9 @@ function Grid:draw()
         for x = 1, self.gw do
             local sx = self.gridOffsetX + (x - 1) * self.tileSize
             local sy = self.gridOffsetY + (y - 1) * self.tileSize
-            setColor(0.1, 0.1, 0.12)
+            self.colors:setColor("moonlit_charcoal", 1)
             rectangle("fill", sx, sy, self.tileSize - 1, self.tileSize - 1)
-            setColor(0.22, 0.22, 0.24)
+            self.colors:setColor("neutral_grey", 1)
             rectangle("line", sx, sy, self.tileSize - 1, self.tileSize - 1)
         end
     end
@@ -354,7 +349,7 @@ function Grid:draw()
         local ox_end = dir.x * self.tileSize * b.endFrac
         local oy_end = dir.y * self.tileSize * b.endFrac
 
-        setColor(0.6, 1.0, 0.2, 0.95)
+        self.colors:setColor("lime_green", 0.95)
         setLineWidth(2)
         line(cx + ox_start, cy + oy_start, cx + ox_end, cy + oy_end)
         setLineWidth(1)
@@ -370,13 +365,10 @@ function Grid:draw()
             local cy = sy + self.tileSize / 2
 
             if ch == '#' then
-                setColor(0.2, 0.2, 0.22)
+                self.colors:setColor("charcoal_gray", 1)
                 rectangle("fill", sx + 4, sy + 4, self.tileSize - 8, self.tileSize - 8)
             elseif ch == 'T' then
                 local hit = self.targetsHit[x .. "," .. y]
-
-                -- Colors
-                local glowColor = hit and { 0 / 255, 255 / 255, 100 / 255, 0.4 } or { 1, 0, 0, 0.3 }
 
                 -- Center and size
                 local r = self.tileSize * 0.22
@@ -387,38 +379,38 @@ function Grid:draw()
                 local glowRadius = r * (1.3 + 0.1 * math_sin(t * 3))
 
                 -- Outer glow
-                setColor(glowColor)
+                self.colors:setColor(hit and "neon_green_glow" or "red_glow", 0.4)
                 circle("fill", cx, cy, glowRadius * pulse)
 
                 -- Main target body
-                setColor(hit and COLOR_ON or COLOR_OFF)
+                self.colors:setColor(hit and "neon_green" or "red", 1)
                 circle("fill", cx, cy, r)
 
                 -- Inner ring highlight
-                setColor(1, 1, 1, 0.2)
+                self.colors:setColor("white_highlight", 0.2)
                 setLineWidth(2)
                 circle("line", cx, cy, r * 0.65)
                 circle("line", cx, cy, r * 0.4)
 
                 -- Black outline
-                setColor(0, 0, 0, 0.6)
+                self.colors:setColor("black_outline", 0.6)
                 setLineWidth(1.5)
                 circle("line", cx, cy, r)
             elseif self.charToDir[ch] then
                 local d = self.charToDir[ch]
 
                 -- Base body (metallic turret)
-                setColor(0.15, 0.15, 0.17)
+                self.colors:setColor("dark_grey", 1)
                 circle("fill", cx, cy, self.tileSize * 0.25)
-                setColor(0.4, 0.4, 0.45)
+                self.colors:setColor("soft_steel", 1)
                 circle("line", cx, cy, self.tileSize * 0.25)
 
                 -- Inner glowing core
-                setColor(1.0, 0.95, 0.4, 0.9)
+                self.colors:setColor("pastel_yellow", 0.9)
                 circle("fill", cx, cy, self.tileSize * 0.12)
 
                 -- Directional nozzle
-                setColor(1.0, 0.85, 0.2)
+                self.colors:setColor("golden_yellow", 1)
                 local nozzleLength = self.tileSize * 0.22
                 local nozzleWidth = self.tileSize * 0.09
                 if d == 0 then
@@ -432,24 +424,24 @@ function Grid:draw()
                 end
 
                 -- Glow ring
-                setColor(1.0, 0.95, 0.4, 0.3)
+                self.colors:setColor("golden_wheat", 0.3)
                 setLineWidth(3)
                 circle("line", cx, cy, self.tileSize * 0.28)
                 setLineWidth(1)
             elseif self.mirrorReflect[ch] then
                 setLineWidth(3)
                 if ch == "M1" then
-                    setColor(0.9, 0.9, 0.9)
+                    self.colors:setColor("silver", 1)
                     -- Forward slash (/)
                     line(cx - self.tileSize * 0.3, cy + self.tileSize * 0.3,
                         cx + self.tileSize * 0.3, cy - self.tileSize * 0.3)
                 elseif ch == "M2" then
-                    setColor(0.9, 0.9, 0.9)
+                    self.colors:setColor("silver", 1)
                     -- Backslash (\)
                     line(cx - self.tileSize * 0.3, cy - self.tileSize * 0.3,
                         cx + self.tileSize * 0.3, cy + self.tileSize * 0.3)
                 elseif ch == "M3" then
-                    setColor(0.5, 0.5, 0.5)
+                    self.colors:setColor("medium_grey", 1)
                     -- Blocking mirrors - draw as X
                     line(cx - self.tileSize * 0.3, cy - self.tileSize * 0.3,
                         cx + self.tileSize * 0.3, cy + self.tileSize * 0.3)
@@ -459,7 +451,7 @@ function Grid:draw()
                 setLineWidth(1)
             elseif ch == 'S' then
                 -- Beam Splitter: draw as a diamond shape with cross pattern
-                setColor(0.4, 0.8, 1.0, 0.9) -- Light blue color
+                self.colors:setColor("light_blue", 0.9)
 
                 -- Draw diamond shape
                 local r = self.tileSize * 0.25
@@ -471,14 +463,14 @@ function Grid:draw()
                 )
 
                 -- Draw cross pattern inside
-                setColor(1, 1, 1, 0.8)
+                self.colors:setColor("white", 0.8)
                 setLineWidth(2)
                 line(cx - r * 0.7, cy, cx + r * 0.7, cy) -- Horizontal line
                 line(cx, cy - r * 0.7, cx, cy + r * 0.7) -- Vertical line
                 setLineWidth(1)
 
                 -- Outline
-                setColor(0.2, 0.5, 0.8)
+                self.colors:setColor("medium_blue", 1)
                 setLineWidth(1.5)
                 polygon("line",
                     cx, cy - r,

@@ -15,8 +15,10 @@ function love.load()
     local soundManager = SoundManager.new()
     levelManager = LevelManager.new()
 
-    grid = Grid.new(soundManager, Colors)
-    game = Game.new(levelManager, grid, soundManager, Colors)
+    local colors = Colors.new()
+
+    grid = Grid.new(soundManager, colors)
+    game = Game.new(levelManager, grid, soundManager, colors)
 
     local w, h = love.graphics.getDimensions()
     game:onResize(w, h)
