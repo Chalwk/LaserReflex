@@ -3,6 +3,22 @@
 -- License: MIT
 -- Copyright (c) 2025 Jericho Crosby (Chalwk)
 
+local math_max = math.max
+local math_min = math.min
+local math_floor = math.floor
+
+local table_insert = table.insert
+
+local pairs = pairs
+local ipairs = ipairs
+
+local setLineWidth = love.graphics.setLineWidth
+local setColor = love.graphics.setColor
+local rectangle = love.graphics.rectangle
+local circle = love.graphics.circle
+local polygon = love.graphics.polygon
+local line = love.graphics.line
+
 local Grid = {}
 Grid.__index = Grid
 
@@ -78,7 +94,7 @@ function Grid:loadLevel(levelData)
         if obj.type == "laser" then
             local char = self.dirToChar[obj.dir]
             self:setTile(obj.x, obj.y, char)
-            table.insert(self.lasers, { x = obj.x, y = obj.y, d = self.charToDir[char] })
+            table_insert(self.lasers, { x = obj.x, y = obj.y, d = self.charToDir[char] })
         elseif obj.type == "mirror" then
             self:setTile(obj.x, obj.y, obj.state)
         elseif obj.type == "target" then
@@ -92,11 +108,11 @@ function Grid:loadLevel(levelData)
 end
 
 function Grid:calculateTileSize(winw, winh)
-    local maxTileW = math.floor((winw - 160) / self.gw)
-    local maxTileH = math.floor((winh - 160) / self.gh)
-    self.tileSize = math.max(24, math.min(64, math.min(maxTileW, maxTileH)))
-    self.gridOffsetX = math.floor((winw - self.gw * self.tileSize) / 2)
-    self.gridOffsetY = math.floor((winh - self.gh * self.tileSize) / 2)
+    local maxTileW = math_floor((winw - 160) / self.gw)
+    local maxTileH = math_floor((winh - 160) / self.gh)
+    self.tileSize = math_max(24, math_min(64, math_min(maxTileW, maxTileH)))
+    self.gridOffsetX = math_floor((winw - self.gw * self.tileSize) / 2)
+    self.gridOffsetY = math_floor((winh - self.gh * self.tileSize) / 2)
 end
 
 function Grid:inBounds(x, y)
@@ -113,8 +129,8 @@ function Grid:setTile(x, y, ch)
 end
 
 function Grid:screenToGrid(sx, sy)
-    local gx = math.floor((sx - self.gridOffsetX) / self.tileSize) + 1
-    local gy = math.floor((sy - self.gridOffsetY) / self.tileSize) + 1
+    local gx = math_floor((sx - self.gridOffsetX) / self.tileSize) + 1
+    local gy = math_floor((sy - self.gridOffsetY) / self.tileSize) + 1
     if self:inBounds(gx, gy) then return gx, gy end
 end
 
@@ -133,7 +149,7 @@ function Grid:rotateMirror(x, y, delta)
 end
 
 function Grid:addBeamSegment(x, y, d, startFrac, endFrac)
-    table.insert(self.beams, { x = x, y = y, d = d, startFrac = startFrac, endFrac = endFrac })
+    table_insert(self.beams, { x = x, y = y, d = d, startFrac = startFrac, endFrac = endFrac })
 end
 
 function Grid:computeBeams()
@@ -205,10 +221,10 @@ function Grid:draw()
         for x = 1, self.gw do
             local sx = self.gridOffsetX + (x - 1) * self.tileSize
             local sy = self.gridOffsetY + (y - 1) * self.tileSize
-            love.graphics.setColor(0.1, 0.1, 0.12)
-            love.graphics.rectangle("fill", sx, sy, self.tileSize - 1, self.tileSize - 1)
-            love.graphics.setColor(0.22, 0.22, 0.24)
-            love.graphics.rectangle("line", sx, sy, self.tileSize - 1, self.tileSize - 1)
+            setColor(0.1, 0.1, 0.12)
+            rectangle("fill", sx, sy, self.tileSize - 1, self.tileSize - 1)
+            setColor(0.22, 0.22, 0.24)
+            rectangle("line", sx, sy, self.tileSize - 1, self.tileSize - 1)
         end
     end
 
@@ -225,10 +241,10 @@ function Grid:draw()
         local ox_end = dir.x * self.tileSize * b.endFrac
         local oy_end = dir.y * self.tileSize * b.endFrac
 
-        love.graphics.setColor(0.6, 1.0, 0.2, 0.95)
-        love.graphics.setLineWidth(2)
-        love.graphics.line(cx + ox_start, cy + oy_start, cx + ox_end, cy + oy_end)
-        love.graphics.setLineWidth(1)
+        setColor(0.6, 1.0, 0.2, 0.95)
+        setLineWidth(2)
+        line(cx + ox_start, cy + oy_start, cx + ox_end, cy + oy_end)
+        setLineWidth(1)
     end
 
     -- Draw tiles
@@ -241,49 +257,49 @@ function Grid:draw()
             local cy = sy + self.tileSize / 2
 
             if ch == '#' then
-                love.graphics.setColor(0.2, 0.2, 0.22)
-                love.graphics.rectangle("fill", sx + 4, sy + 4, self.tileSize - 8, self.tileSize - 8)
+                setColor(0.2, 0.2, 0.22)
+                rectangle("fill", sx + 4, sy + 4, self.tileSize - 8, self.tileSize - 8)
             elseif ch == 'T' then
                 local hit = self.targetsHit[x .. "," .. y]
-                love.graphics.setColor(hit and { 0 / 255, 255 / 255, 68 / 255 } or { 255, 0, 0 })
-                love.graphics.circle("fill", cx, cy, self.tileSize * 0.22)
-                love.graphics.setColor(0, 0, 0, 0.6)
-                love.graphics.circle("line", cx, cy, self.tileSize * 0.22)
+                setColor(hit and { 0 / 255, 255 / 255, 68 / 255 } or { 255, 0, 0 })
+                circle("fill", cx, cy, self.tileSize * 0.22)
+                setColor(0, 0, 0, 0.6)
+                circle("line", cx, cy, self.tileSize * 0.22)
             elseif self.charToDir[ch] then
-                love.graphics.setColor(1.0, 0.9, 0.3)
-                love.graphics.rectangle("fill", cx - 6, cy - 6, 12, 12)
-                love.graphics.setColor(0.06, 0.06, 0.06)
+                setColor(1.0, 0.9, 0.3)
+                rectangle("fill", cx - 6, cy - 6, 12, 12)
+                setColor(0.06, 0.06, 0.06)
                 local d = self.charToDir[ch]
                 if d == 0 then
-                    love.graphics.polygon("fill", cx, cy - 10, cx - 6, cy + 4, cx + 6, cy + 4)
+                    polygon("fill", cx, cy - 10, cx - 6, cy + 4, cx + 6, cy + 4)
                 elseif d == 1 then
-                    love.graphics.polygon("fill", cx + 10, cy, cx - 4, cy - 6, cx - 4, cy + 6)
+                    polygon("fill", cx + 10, cy, cx - 4, cy - 6, cx - 4, cy + 6)
                 elseif d == 2 then
-                    love.graphics.polygon("fill", cx, cy + 10, cx - 6, cy - 4, cx + 6, cy - 4)
+                    polygon("fill", cx, cy + 10, cx - 6, cy - 4, cx + 6, cy - 4)
                 elseif d == 3 then
-                    love.graphics.polygon("fill", cx - 10, cy, cx + 4, cy - 6, cx + 4, cy + 6)
+                    polygon("fill", cx - 10, cy, cx + 4, cy - 6, cx + 4, cy + 6)
                 end
             elseif self.mirrorReflect[ch] then
-                love.graphics.setLineWidth(3)
+                setLineWidth(3)
                 if ch == "M1" then
-                    love.graphics.setColor(0.9, 0.9, 0.9)
+                    setColor(0.9, 0.9, 0.9)
                     -- Forward slash (/)
-                    love.graphics.line(cx - self.tileSize * 0.3, cy + self.tileSize * 0.3,
+                    line(cx - self.tileSize * 0.3, cy + self.tileSize * 0.3,
                         cx + self.tileSize * 0.3, cy - self.tileSize * 0.3)
                 elseif ch == "M2" then
-                    love.graphics.setColor(0.9, 0.9, 0.9)
+                    setColor(0.9, 0.9, 0.9)
                     -- Backslash (\)
-                    love.graphics.line(cx - self.tileSize * 0.3, cy - self.tileSize * 0.3,
+                    line(cx - self.tileSize * 0.3, cy - self.tileSize * 0.3,
                         cx + self.tileSize * 0.3, cy + self.tileSize * 0.3)
                 elseif ch == "M3" or ch == "M4" then
-                    love.graphics.setColor(0.5, 0.5, 0.5)
+                    setColor(0.5, 0.5, 0.5)
                     -- Blocking mirrors - draw as X
-                    love.graphics.line(cx - self.tileSize * 0.3, cy - self.tileSize * 0.3,
+                    line(cx - self.tileSize * 0.3, cy - self.tileSize * 0.3,
                         cx + self.tileSize * 0.3, cy + self.tileSize * 0.3)
-                    love.graphics.line(cx - self.tileSize * 0.3, cy + self.tileSize * 0.3,
+                    line(cx - self.tileSize * 0.3, cy + self.tileSize * 0.3,
                         cx + self.tileSize * 0.3, cy - self.tileSize * 0.3)
                 end
-                love.graphics.setLineWidth(1)
+                setLineWidth(1)
             end
         end
     end
