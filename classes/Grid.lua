@@ -56,21 +56,21 @@ function Grid.new(soundManager, colors)
     -- M3: Blocking
     instance.mirrorReflect = {
         -- Forward slash (/): reflects 90 degrees
-        M1 = function(direction)
-            if direction == 0 then return 1 end -- Up -> Right
-            if direction == 1 then return 0 end -- Right -> Up
-            if direction == 2 then return 3 end -- Down -> Left
-            if direction == 3 then return 2 end -- Left -> Down
-            return nil
+        M1 = function(d)
+            -- Up -> Right
+            -- Right -> Up
+            -- Down -> Left
+            -- Left -> Down
+            return d == 0 and 1 or d == 1 and 0 or d == 2 and 3 or d == 3 and 2 or nil
         end,
 
         -- Backslash (\): reflects 90 degrees
-        M2 = function(direction)
-            if direction == 0 then return 3 end -- Up -> Left
-            if direction == 1 then return 2 end -- Right -> Down
-            if direction == 2 then return 1 end -- Down -> Right
-            if direction == 3 then return 0 end -- Left -> Up
-            return nil
+        M2 = function(d)
+            -- Up -> Left
+            -- Right -> Down
+            -- Down -> Right
+            -- Left -> Up
+            return d == 0 and 3 or d == 1 and 2 or d == 2 and 1 or d == 3 and 0 or nil
         end,
 
         -- Blocking mirror
@@ -78,12 +78,10 @@ function Grid.new(soundManager, colors)
     }
 
     -- Beam Splitter: splits beam into perpendicular directions
-    instance.beamSplitter = function(direction)
-        if direction == 0 or direction == 2 then
-            return { 1, 3 } -- Up/Down -> Right/Left
-        else
-            return { 0, 2 } -- Right/Left -> Up/Down
-        end
+    instance.beamSplitter = function(d)
+        -- Up/Down -> Right/Left
+        -- Right/Left -> Up/Down
+        return d == 0 or d == 2 and { 1, 3 } or { 0, 2 }
     end
 
     instance.mirrorStates = { "M1", "M2", "M3" }
@@ -91,87 +89,24 @@ function Grid.new(soundManager, colors)
     return instance
 end
 
-function Grid:loadLevel(levelData)
-    --self.gw, self.gh = levelData.size[1], levelData.size[2]
-    self.gw, self.gh = 10, 10 -- temp hard-coded grid size
-    self.grid, self.lasers, self.beams, self.targetsHit = {}, {}, {}, {}
-    self.previouslyHit = {}
-
-    -- Initialize empty grid
-    for y = 1, self.gh do
-        self.grid[y] = {}
-        for x = 1, self.gw do
-            self.grid[y][x] = '.'
-        end
-    end
-
-    -- Place objects from the map definition
-    for _, obj in ipairs(levelData.map) do
-        if obj.type == "laser" then
-            local char = self.dirToChar[obj.dir]
-            self:setTile(obj.x, obj.y, char)
-            table_insert(self.lasers, { x = obj.x, y = obj.y, d = self.charToDir[char] })
-        elseif obj.type == "mirror" then
-            self:setTile(obj.x, obj.y, obj.state)
-        elseif obj.type == "target" then
-            self:setTile(obj.x, obj.y, 'T')
-        elseif obj.type == "wall" then
-            self:setTile(obj.x, obj.y, '#')
-        elseif obj.type == "splitter" then
-            self:setTile(obj.x, obj.y, 'S')
-        end
-    end
-
-    self:computeBeams()
-end
-
-function Grid:calculateTileSize(winw, winh)
-    local maxTileW = math_floor((winw - 160) / self.gw)
-    local maxTileH = math_floor((winh - 160) / self.gh)
-    self.tileSize = math_max(24, math_min(64, math_min(maxTileW, maxTileH)))
-    self.gridOffsetX = math_floor((winw - self.gw * self.tileSize) / 2)
-    self.gridOffsetY = math_floor((winh - self.gh * self.tileSize) / 2)
-end
-
-function Grid:inBounds(x, y)
+local function inBounds(self, x, y)
     return x >= 1 and x <= self.gw and y >= 1 and y <= self.gh
 end
 
-function Grid:tileAt(x, y)
-    if not self:inBounds(x, y) then return nil end
+local function tileAt(self, x, y)
+    if not inBounds(self, x, y) then return nil end
     return self.grid[y][x]
 end
 
-function Grid:setTile(x, y, ch)
-    if self:inBounds(x, y) then self.grid[y][x] = ch end
+local function setTile(self, x, y, ch)
+    if inBounds(self, x, y) then self.grid[y][x] = ch end
 end
 
-function Grid:screenToGrid(sx, sy)
-    local gx = math_floor((sx - self.gridOffsetX) / self.tileSize) + 1
-    local gy = math_floor((sy - self.gridOffsetY) / self.tileSize) + 1
-    if self:inBounds(gx, gy) then return gx, gy end
-end
-
-function Grid:rotateMirror(x, y, delta)
-    local ch = self:tileAt(x, y)
-    if not ch then return end
-
-    for i, state in ipairs(self.mirrorStates) do
-        if ch == state then
-            local newIndex = ((i - 1 + (delta or 1)) % #self.mirrorStates) + 1
-            self:setTile(x, y, self.mirrorStates[newIndex])
-            self:computeBeams()
-            self.sounds:play("rotate")
-            return
-        end
-    end
-end
-
-function Grid:addBeamSegment(x, y, d, startFrac, endFrac)
+local function addBeamSegment(self, x, y, d, startFrac, endFrac)
     table_insert(self.beams, { x = x, y = y, d = d, startFrac = startFrac, endFrac = endFrac })
 end
 
-function Grid:computeBeams()
+local function computeBeams(self)
     self.beams = {}
     self.targetsHit = {}   -- Clear previous hits at start of computation
     local currentHits = {} -- Track hits in current frame
@@ -185,23 +120,23 @@ function Grid:computeBeams()
         x = x + self.dirVecs[d + 1].x
         y = y + self.dirVecs[d + 1].y
 
-        while self:inBounds(x, y) do
+        while inBounds(self, x, y) do
             local key = x .. "," .. y .. "," .. d
             if visited[key] then break end
             visited[key] = true
 
-            local ch = self:tileAt(x, y)
+            local ch = tileAt(self, x, y)
             if ch == '.' then
-                self:addBeamSegment(x, y, d, -0.45, 0.45)
+                addBeamSegment(self, x, y, d, -0.45, 0.45)
             elseif ch == '#' then
                 break
             elseif ch == 'T' then
-                self:addBeamSegment(x, y, d, -0.45, 0.0)
+                addBeamSegment(self, x, y, d, -0.45, 0.0)
                 currentHits[x .. "," .. y] = true
                 self.targetsHit[x .. "," .. y] = true
                 break
             elseif self.mirrorReflect[ch] then
-                self:addBeamSegment(x, y, d, -0.15, 0.15)
+                addBeamSegment(self, x, y, d, -0.15, 0.15)
                 local newdir = self.mirrorReflect[ch](d)
                 if newdir then
                     d = newdir
@@ -210,7 +145,7 @@ function Grid:computeBeams()
                 end
             elseif ch == 'S' then
                 -- Beam Splitter: split into two perpendicular directions
-                self:addBeamSegment(x, y, d, -0.15, 0.15)
+                addBeamSegment(self, x, y, d, -0.15, 0.15)
 
                 -- Get the two split directions
                 local splitDirs = self.beamSplitter(d)
@@ -221,23 +156,23 @@ function Grid:computeBeams()
                 local visited1 = {}
                 for k, v in pairs(visited) do visited1[k] = v end
 
-                while self:inBounds(x1, y1) do
+                while inBounds(self, x1, y1) do
                     local key1 = x1 .. "," .. y1 .. "," .. d1
                     if visited1[key1] then break end
                     visited1[key1] = true
 
-                    local ch1 = self:tileAt(x1, y1)
+                    local ch1 = tileAt(self, x1, y1)
                     if ch1 == '.' then
-                        self:addBeamSegment(x1, y1, d1, -0.45, 0.45)
+                        addBeamSegment(self, x1, y1, d1, -0.45, 0.45)
                     elseif ch1 == '#' then
                         break
                     elseif ch1 == 'T' then
-                        self:addBeamSegment(x1, y1, d1, -0.45, 0.0)
+                        addBeamSegment(self, x1, y1, d1, -0.45, 0.0)
                         currentHits[x1 .. "," .. y1] = true
                         self.targetsHit[x1 .. "," .. y1] = true
                         break
                     elseif self.mirrorReflect[ch1] then
-                        self:addBeamSegment(x1, y1, d1, -0.15, 0.15)
+                        addBeamSegment(self, x1, y1, d1, -0.15, 0.15)
                         local newdir1 = self.mirrorReflect[ch1](d1)
                         if newdir1 then d1 = newdir1 else break end
                     elseif ch1 == 'S' then
@@ -257,23 +192,23 @@ function Grid:computeBeams()
                 local visited2 = {}
                 for k, v in pairs(visited) do visited2[k] = v end
 
-                while self:inBounds(x2, y2) do
+                while inBounds(self, x2, y2) do
                     local key2 = x2 .. "," .. y2 .. "," .. d2
                     if visited2[key2] then break end
                     visited2[key2] = true
 
-                    local ch2 = self:tileAt(x2, y2)
+                    local ch2 = tileAt(self, x2, y2)
                     if ch2 == '.' then
-                        self:addBeamSegment(x2, y2, d2, -0.45, 0.45)
+                        addBeamSegment(self, x2, y2, d2, -0.45, 0.45)
                     elseif ch2 == '#' then
                         break
                     elseif ch2 == 'T' then
-                        self:addBeamSegment(x2, y2, d2, -0.45, 0.0)
+                        addBeamSegment(self, x2, y2, d2, -0.45, 0.0)
                         currentHits[x2 .. "," .. y2] = true
                         self.targetsHit[x2 .. "," .. y2] = true
                         break
                     elseif self.mirrorReflect[ch2] then
-                        self:addBeamSegment(x2, y2, d2, -0.15, 0.15)
+                        addBeamSegment(self, x2, y2, d2, -0.15, 0.15)
                         local newdir2 = self.mirrorReflect[ch2](d2)
                         if newdir2 then d2 = newdir2 else break end
                     elseif ch2 == 'S' then
@@ -289,7 +224,7 @@ function Grid:computeBeams()
 
                 break -- Original beam stops at splitter
             elseif self.charToDir[ch] then
-                self:addBeamSegment(x, y, d, -0.45, 0.45)
+                addBeamSegment(self, x, y, d, -0.45, 0.45)
             else
                 break
             end
@@ -315,11 +250,74 @@ function Grid:computeBeams()
     self.previouslyHit = currentHits
 end
 
+function Grid:loadLevel(levelData)
+    --self.gw, self.gh = levelData.size[1], levelData.size[2]
+    self.gw, self.gh = 10, 10 -- temp hard-coded grid size
+    self.grid, self.lasers, self.beams, self.targetsHit = {}, {}, {}, {}
+    self.previouslyHit = {}
+
+    -- Initialize empty grid
+    for y = 1, self.gh do
+        self.grid[y] = {}
+        for x = 1, self.gw do
+            self.grid[y][x] = '.'
+        end
+    end
+
+    -- Place objects from the map definition
+    for _, obj in ipairs(levelData.map) do
+        if obj.type == "laser" then
+            local char = self.dirToChar[obj.dir]
+            setTile(self, obj.x, obj.y, char)
+            table_insert(self.lasers, { x = obj.x, y = obj.y, d = self.charToDir[char] })
+        elseif obj.type == "mirror" then
+            setTile(self, obj.x, obj.y, obj.state)
+        elseif obj.type == "target" then
+            setTile(self, obj.x, obj.y, 'T')
+        elseif obj.type == "wall" then
+            setTile(self, obj.x, obj.y, '#')
+        elseif obj.type == "splitter" then
+            setTile(self, obj.x, obj.y, 'S')
+        end
+    end
+
+    computeBeams(self)
+end
+
+function Grid:calculateTileSize(winw, winh)
+    local maxTileW = math_floor((winw - 160) / self.gw)
+    local maxTileH = math_floor((winh - 160) / self.gh)
+    self.tileSize = math_max(24, math_min(64, math_min(maxTileW, maxTileH)))
+    self.gridOffsetX = math_floor((winw - self.gw * self.tileSize) / 2)
+    self.gridOffsetY = math_floor((winh - self.gh * self.tileSize) / 2)
+end
+
+function Grid:screenToGrid(sx, sy)
+    local gx = math_floor((sx - self.gridOffsetX) / self.tileSize) + 1
+    local gy = math_floor((sy - self.gridOffsetY) / self.tileSize) + 1
+    if inBounds(self, gx, gy) then return gx, gy end
+end
+
+function Grid:rotateMirror(x, y, delta)
+    local ch = tileAt(self, x, y)
+    if not ch then return end
+
+    for i, state in ipairs(self.mirrorStates) do
+        if ch == state then
+            local newIndex = ((i - 1 + (delta or 1)) % #self.mirrorStates) + 1
+            setTile(self, x, y, self.mirrorStates[newIndex])
+            computeBeams(self)
+            self.sounds:play("rotate")
+            return
+        end
+    end
+end
+
 function Grid:getTargetProgress()
     local totalTargets, hitCount = 0, 0
     for y = 1, self.gh do
         for x = 1, self.gw do
-            if self:tileAt(x, y) == 'T' then totalTargets = totalTargets + 1 end
+            if tileAt(self, x, y) == 'T' then totalTargets = totalTargets + 1 end
         end
     end
     for _ in pairs(self.targetsHit) do hitCount = hitCount + 1 end
@@ -490,7 +488,7 @@ function Grid:draw()
     -- Draw tiles
     for y = 1, self.gh do
         for x = 1, self.gw do
-            local ch = self:tileAt(x, y)
+            local ch = tileAt(self, x, y)
             local sx = self.gridOffsetX + (x - 1) * self.tileSize
             local sy = self.gridOffsetY + (y - 1) * self.tileSize
             local cx = sx + self.tileSize / 2
