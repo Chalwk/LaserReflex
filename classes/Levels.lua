@@ -51,18 +51,16 @@ function LevelManager.new()
 
         -- Level 4: Multiple reflections
         {
-            name = "Double Reflection",
+            name = "Split Reflection",
             map = {
                 { x = 2, y = 2, type = "laser",   dir = "right" },
-                { x = 6, y = 2, type = "mirror",  state = "M3" },
-                { x = 6, y = 8, type = "mirror",  state = "M3" },
-                { x = 3, y = 5, type = "target" },
-                { x = 7, y = 2, type = "wall" },
-                { x = 5, y = 3, type = "wall" },
-                { x = 5, y = 4, type = "wall" },
-                { x = 5, y = 5, type = "splitter" },
-                { x = 5, y = 6, type = "wall" },
-                { x = 5, y = 7, type = "wall" }
+                { x = 9, y = 2, type = "mirror",  state = "M3" },
+                { x = 5, y = 3, type = "mirror",  state = "M3" },
+                { x = 9, y = 6, type = "mirror",  state = "M3" },
+                { x = 5, y = 9, type = "mirror",  state = "M3" },
+                { x = 7, y = 3, type = "target" },
+                { x = 7, y = 9, type = "target" },
+                { x = 5, y = 6, type = "splitter" }
             }
         },
 
