@@ -8,8 +8,9 @@ local Game = require("classes.Game")
 local Colors = require("classes.Colors")
 local LevelManager = require("classes.Levels")
 local SoundManager = require("classes.SoundManager")
+local PerlinBackground = require("classes.PerlinBackground")
 
-local game, grid, levelManager
+local game, grid, levelManager, background
 
 function love.load()
     local soundManager = SoundManager.new()
@@ -20,6 +21,8 @@ function love.load()
     grid = Grid.new(soundManager, colors)
     game = Game.new(levelManager, grid, soundManager, colors)
 
+    background = PerlinBackground.new(colors)
+
     local w, h = love.graphics.getDimensions()
     game:onResize(w, h)
 
@@ -28,14 +31,17 @@ end
 
 function love.resize(w, h)
     game:onResize(w, h)
-end
-
-function love.draw()
-    game:draw()
+    background:resize()
 end
 
 function love.update(dt)
+    background:update(dt)
     game:update(dt)
+end
+
+function love.draw()
+    background:draw()
+    game:draw()
 end
 
 function love.mousepressed(x, y, button)

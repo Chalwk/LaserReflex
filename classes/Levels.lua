@@ -53,9 +53,9 @@ function LevelManager.new()
         {
             name = "Double Reflection",
             map = {
-                { x = 2, y = 2, type = "laser",  dir = "right" },
-                { x = 6, y = 2, type = "mirror", state = "M3" },
-                { x = 6, y = 8, type = "mirror", state = "M3" },
+                { x = 2, y = 2, type = "laser",   dir = "right" },
+                { x = 6, y = 2, type = "mirror",  state = "M3" },
+                { x = 6, y = 8, type = "mirror",  state = "M3" },
                 { x = 3, y = 5, type = "target" },
                 { x = 7, y = 2, type = "wall" },
                 { x = 5, y = 3, type = "wall" },
@@ -111,15 +111,6 @@ function LevelManager.new()
                 { x = 2, y = 3, type = "laser",  dir = "right" },
                 { x = 6, y = 5, type = "mirror", state = "M3" },
                 { x = 7, y = 9, type = "target" },
-                { x = 2, y = 2, type = "wall" }, { x = 4, y = 2, type = "wall" }, { x = 6, y = 2, type = "wall" },
-                { x = 8, y = 2, type = "wall" }, { x = 10, y = 2, type = "wall" }, { x = 2, y = 4, type = "wall" },
-                { x = 4, y = 4, type = "wall" }, { x = 6, y = 4, type = "wall" }, { x = 8, y = 4, type = "wall" },
-                { x = 10, y = 4, type = "wall" }, { x = 2, y = 6, type = "wall" }, { x = 4, y = 6, type = "wall" },
-                { x = 6,  y = 6, type = "wall" }, { x = 8, y = 6, type = "wall" }, { x = 10, y = 6, type = "wall" },
-                { x = 2, y = 8, type = "wall" }, { x = 4, y = 8, type = "wall" }, { x = 6, y = 8, type = "wall" },
-                { x = 8, y = 8, type = "wall" }, { x = 10, y = 8, type = "wall" }, { x = 2, y = 10, type = "wall" },
-                { x = 4,  y = 10, type = "wall" }, { x = 6, y = 10, type = "wall" }, { x = 8, y = 10, type = "wall" },
-                { x = 10, y = 10, type = "wall" }
             }
         }
     }
