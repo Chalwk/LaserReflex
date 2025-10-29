@@ -41,7 +41,7 @@ function PerlinBackground.new(colors)
     instance.lastTime = 0
     instance.updateInterval = 0.05 -- Update canvas every 50ms
 
-    -- Generate optimized permutation table
+    -- Generate permutation table
     instance.perm = {}
     math_randomseed(os_time())
     for i = 0, 255 do
