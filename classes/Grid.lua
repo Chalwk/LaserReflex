@@ -327,56 +327,75 @@ local function drawGrid(self, sx, sy)
     rectangle("line", sx, sy, self.tileSize - 1, self.tileSize - 1)
 end
 
+-- Forward-slash mirror (/)
 local function drawForwardSlash(self, cx, cy)
-    self.colors:setColor("silver", 1)
-    line(cx - self.tileSize * 0.3, cy + self.tileSize * 0.3,
-        cx + self.tileSize * 0.3, cy - self.tileSize * 0.3)
+    local r = self.tileSize * 0.42
+    self.colors:setColor("mirror_base", 1)
+    circle("line", cx, cy, r)
+
+    -- Reflective arc faces top-right, and bottom-left
+    self.colors:setColor("mirror_glow", 0.9)
+    setLineWidth(3)
+    local startAngle, endAngle = math.rad(-45), math.rad(135)
+    love.graphics.arc("line", cx, cy, r, startAngle, endAngle)
+    setLineWidth(1)
 end
 
+-- Backslash mirror (\)
 local function drawBackSlash(self, cx, cy)
-    self.colors:setColor("silver", 1)
-    line(cx - self.tileSize * 0.3, cy - self.tileSize * 0.3,
-        cx + self.tileSize * 0.3, cy + self.tileSize * 0.3)
+    local r = self.tileSize * 0.42
+    self.colors:setColor("mirror_base", 1)
+    circle("line", cx, cy, r)
+
+    -- Reflective arc faces top-left, and bottom-right
+    self.colors:setColor("mirror_glow", 0.9)
+    setLineWidth(3)
+    local startAngle, endAngle = math.rad(45), math.rad(225)
+    love.graphics.arc("line", cx, cy, r, startAngle, endAngle)
+    setLineWidth(1)
 end
 
+-- Blocking mirror (M3)
 local function drawX(self, cx, cy)
-    self.colors:setColor("medium_grey", 1)
-    line(cx - self.tileSize * 0.3, cy - self.tileSize * 0.3,
-        cx + self.tileSize * 0.3, cy + self.tileSize * 0.3)
-    line(cx - self.tileSize * 0.3, cy + self.tileSize * 0.3,
-        cx + self.tileSize * 0.3, cy - self.tileSize * 0.3)
-end
+    local r = self.tileSize * 0.42
+    self.colors:setColor("mirror_disabled_outer", 1)
+    circle("line", cx, cy, r)
 
-local function drawSplitter(self, cx, cy)
-    self.colors:setColor("light_blue", 0.9)
+    self.colors:setColor("mirror_disabled_fill", 0.6)
+    circle("fill", cx, cy, r * 0.6)
 
-    -- Draw diamond shape
-    local r = self.tileSize * 0.25
-    polygon("fill",
-        cx, cy - r,
-        cx + r, cy,
-        cx, cy + r,
-        cx - r, cy
-    )
-
-    -- Draw cross pattern inside
-    self.colors:setColor("white", 0.8)
+    self.colors:setColor("mirror_disabled_highlight", 0.8)
     setLineWidth(2)
-    line(cx - r * 0.7, cy, cx + r * 0.7, cy) -- Horizontal line
-    line(cx, cy - r * 0.7, cx, cy + r * 0.7) -- Vertical line
-    setLineWidth(1)
-
-    -- Outline
-    self.colors:setColor("medium_blue", 1)
-    setLineWidth(1.5)
-    polygon("line",
-        cx, cy - r,
-        cx + r, cy,
-        cx, cy + r,
-        cx - r, cy
-    )
+    circle("line", cx, cy, r * 0.6)
     setLineWidth(1)
 end
+
+-- Beam Splitter (S)
+local function drawSplitter(self, cx, cy)
+    local r = self.tileSize * 0.42
+    local t = love.timer.getTime()
+    local pulse = 0.75 + 0.25 * math.sin(t * 5)
+
+    -- Outer ring glow
+    self.colors:setColor("splitter_glow", 0.4 * pulse)
+    circle("fill", cx, cy, r * 1.1)
+
+    -- Main circle ring
+    self.colors:setColor("splitter_base", 1)
+    circle("line", cx, cy, r)
+
+    -- Cross pattern inside
+    setLineWidth(3)
+    self.colors:setColor("splitter_cross", 1)
+    line(cx - r * 0.5, cy, cx + r * 0.5, cy)
+    line(cx, cy - r * 0.5, cx, cy + r * 0.5)
+    setLineWidth(1)
+
+    -- Center pulse
+    self.colors:setColor("splitter_core", 1)
+    circle("fill", cx, cy, r * 0.25 * pulse)
+end
+
 
 local function drawBeam(self, cx, cy, ox_start, oy_start, ox_end, oy_end)
     self.colors:setColor("lime_green", 0.95)

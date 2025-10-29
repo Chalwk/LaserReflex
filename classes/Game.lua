@@ -3,7 +3,7 @@
 -- License: MIT
 -- Copyright (c) 2025 Jericho Crosby (Chalwk)
 
-local HEADER_TEXT = "LaserReflex - Level: (%d) %s"
+local HEADER_TEXT = "Level: (%d) %s"
 local WIN_TEXT = "All targets hit! Press N for next level."
 local SIDE_TEXT = "Targets: %d / %d"
 local FOOTER_TEXT = "LaserReflex - Copyright (c) 2025 Jericho Crosby (Chalwk)"
