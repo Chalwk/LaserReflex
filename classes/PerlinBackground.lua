@@ -76,19 +76,19 @@ local function grad2D(hash, x, y)
 end
 
 local function noise2D(self, x, y)
-    local X  = math_floor(x) % 255
-    local Y  = math_floor(y) % 255
+    local X = math_floor(x) % 255
+    local Y = math_floor(y) % 255
 
-    x        = x - math_floor(x)
-    y        = y - math_floor(y)
+    x = x - math_floor(x)
+    y = y - math_floor(y)
 
-    local u  = fade(x)
-    local v  = fade(y)
+    local u = fade(x)
+    local v = fade(y)
 
-    local A  = self.perm[X] + Y
+    local A = self.perm[X] + Y
     local AA = self.perm[A]
     local AB = self.perm[A + 1]
-    local B  = self.perm[X + 1] + Y
+    local B = self.perm[X + 1] + Y
     local BA = self.perm[B]
     local BB = self.perm[B + 1]
 
@@ -145,24 +145,21 @@ local function updateCanvas(self)
             local nx = x * self.noiseScale
             local ny = y * self.noiseScale
 
-            -- Use 2D noise for performance - add time to X coordinate for animation
-            local noiseValue = fractalNoise2D(self, nx + self.time, ny, 2, 0.5)
-
-            -- Map noise to colors with early returns
-            if noiseValue > 0.85 then
+            local noiseValue = fractalNoise2D(self, nx + self.time, ny, 3, 0.7)
+            if noiseValue > 0.8 then
                 self.colors:setColor("white", 0.9)
                 rectangle("fill", x, y, cellSize, cellSize)
-            elseif noiseValue > 0.7 then
+            elseif noiseValue > 0.6 then
                 self.colors:setColor("neon_green_glow", 0.8)
                 rectangle("fill", x, y, cellSize, cellSize)
-            elseif noiseValue > 0.5 then
-                self.colors:setColor("lime_green", 0.4)
+            elseif noiseValue > 0.4 then
+                self.colors:setColor("lime_green", 0.5)
                 rectangle("fill", x, y, cellSize, cellSize)
-            elseif noiseValue > 0.3 then
-                self.colors:setColor("medium_blue", 0.2)
+            elseif noiseValue > 0.2 then
+                self.colors:setColor("medium_blue", 0.3)
                 rectangle("fill", x, y, cellSize, cellSize)
-            elseif noiseValue > 0.1 then
-                self.colors:setColor("moonlit_charcoal", 0.3)
+            elseif noiseValue > -0.1 then
+                self.colors:setColor("moonlit_charcoal", 0.4)
                 rectangle("fill", x, y, cellSize, cellSize)
             end
         end
@@ -212,14 +209,11 @@ function PerlinBackground:update(dt)
 end
 
 function PerlinBackground:draw()
-    if self.canvas then
-        draw(self.canvas, 0, 0)
-    end
+    if self.canvas then draw(self.canvas, 0, 0) end
     drawLaserGrid(self)
 end
 
-function PerlinBackground:resize()
-    self.canvas = nil -- Force recreation on next update
-end
+-- Force recreation on next update
+function PerlinBackground:resize() self.canvas = nil end
 
 return PerlinBackground
