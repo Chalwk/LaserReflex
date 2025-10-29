@@ -5,13 +5,9 @@
 
 local ParticleSystem = require("classes.Particles")
 
-local math_max = math.max
-local math_min = math.min
-local math_sin = math.sin
-local math_floor = math.floor
+local math_floor, math_sin, math_min, math_max = math.floor, math.sin, math.min, math.max
+local pairs, ipairs = pairs, ipairs
 local table_insert = table.insert
-local pairs = pairs
-local ipairs = ipairs
 
 local setLineWidth = love.graphics.setLineWidth
 local rectangle = love.graphics.rectangle
