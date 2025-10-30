@@ -406,7 +406,6 @@ local function drawSplitter(self, cx, cy)
     circle("fill", cx, cy, r * 0.25 * pulse)
 end
 
-
 local function drawBeam(self, cx, cy, ox_start, oy_start, ox_end, oy_end)
     self.colors:setColor("lime_green", 0.95)
     setLineWidth(2)

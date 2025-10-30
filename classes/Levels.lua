@@ -11,6 +11,7 @@ function LevelManager.new()
 
     instance.levels = {
         {
+            -- Level 1
             name = "Simple Turn",
             map = {
                 { x = 3, y = 3, type = "laser",  dir = "right" },
@@ -19,6 +20,7 @@ function LevelManager.new()
             }
         },
         {
+            -- Level 2
             name = "Double Approach",
             map = {
                 { x = 2, y = 2, type = "laser",  dir = "right" },
@@ -30,6 +32,7 @@ function LevelManager.new()
             }
         },
         {
+            -- Level 3
             name = "Wall Barriers",
             map = {
                 { x = 2, y = 2, type = "laser",  dir = "right" },
@@ -44,6 +47,7 @@ function LevelManager.new()
             }
         },
         {
+            -- Level 4
             name = "Split Reflection",
             map = {
                 { x = 2, y = 2, type = "laser",   dir = "right" },
@@ -57,6 +61,7 @@ function LevelManager.new()
             }
         },
         {
+            -- Level 5
             name = "Corner Bounce",
             map = {
                 { x = 2, y = 2, type = "laser",  dir = "right" },
@@ -68,6 +73,7 @@ function LevelManager.new()
             }
         },
         {
+            -- Level 6
             name = "Wall Maze",
             map = {
                 { x = 2, y = 2, type = "laser",  dir = "right" },
@@ -82,6 +88,7 @@ function LevelManager.new()
             }
         },
         {
+            -- Level 7
             name = "Split Decision",
             map = {
                 { x = 2, y = 2, type = "laser",   dir = "right" },
@@ -94,6 +101,7 @@ function LevelManager.new()
             }
         },
         {
+            -- Level 8
             name = "Reflection Corridor",
             map = {
                 { x = 2, y = 2, type = "laser",  dir = "right" },
@@ -108,6 +116,7 @@ function LevelManager.new()
             }
         },
         {
+            -- Level 9
             name = "The Crossfire",
             map = {
                 { x = 2,  y = 2,  type = "laser",   dir = "right" },
@@ -123,6 +132,7 @@ function LevelManager.new()
             }
         },
         {
+            -- Level 10
             name = "Corner Walls",
             map = {
                 { x = 2, y = 2, type = "laser",  dir = "right" },
@@ -137,6 +147,7 @@ function LevelManager.new()
             }
         },
         {
+            -- Level 11
             name = "Maze Split",
             map = {
                 { x = 2, y = 3, type = "laser",   dir = "right" },
@@ -153,6 +164,7 @@ function LevelManager.new()
             }
         },
         {
+            -- Level 12
             name = "Red Herring Alley",
             map = {
                 { x = 1,  y = 5, type = "laser",  dir = "right" },
@@ -170,6 +182,7 @@ function LevelManager.new()
             }
         },
         {
+            -- Level 13
             name = "Blocked Corridor",
             map = {
                 { x = 5, y = 1, type = "laser",  dir = "down" },
@@ -184,6 +197,7 @@ function LevelManager.new()
             }
         },
         {
+            -- Level 14
             name = "Mirror Maze Finale",
             map = {
                 { x = 2, y = 8, type = "laser",  dir = "right" },
