@@ -104,15 +104,15 @@ end
 
 local function computeBeams(self)
     self.beams = {}
-    self.targetsHit = {}   -- Clear previous hits at start of computation
-    local currentHits = {} -- Track hits in current frame
+    self.targetsHit = {}   -- Clear previous hits
+    local currentHits = {} -- Track hits this frame
 
     for _, src in ipairs(self.lasers) do
         local sx, sy, sd = src.x, src.y, src.d
         local x, y, d = sx, sy, sd
         local visited = {}
 
-        -- Move beam out of laser starting position
+        -- Move one tile outward from the laser
         x = x + self.dirVecs[d + 1].x
         y = y + self.dirVecs[d + 1].y
 
@@ -122,6 +122,7 @@ local function computeBeams(self)
             visited[key] = true
 
             local ch = tileAt(self, x, y)
+
             if ch == '.' then
                 addBeamSegment(self, x, y, d, -0.45, 0.45)
             elseif ch == '#' then
@@ -136,99 +137,73 @@ local function computeBeams(self)
                 local newdir = self.mirrorReflect[ch](d)
 
                 if newdir then
-                    -- Store angled beam segment with both directions
+                    -- Draw 90 degree turn inside the mirror tile
                     table_insert(self.beams, {
-                        x = x, y = y,
+                        x = x,
+                        y = y,
                         incoming_d = incoming_dir,
                         outgoing_d = newdir,
                         type = "mirror"
                     })
                     d = newdir
                 else
-                    -- Blocking mirror - just show incoming beam
+                    -- Blocking mirror (M3)
                     addBeamSegment(self, x, y, d, -0.45, 0)
                     break
                 end
             elseif ch == 'S' then
-                -- Beam Splitter: split into two perpendicular directions
+                -- Beam Splitter logic
                 addBeamSegment(self, x, y, d, -0.15, 0.15)
-
-                -- Get the two split directions
                 local splitDirs = self.beamSplitter(d)
 
-                -- Process first split beam
-                local d1 = splitDirs[1]
-                local x1, y1 = x + self.dirVecs[d1 + 1].x, y + self.dirVecs[d1 + 1].y
-                local visited1 = {}
-                for k, v in pairs(visited) do visited1[k] = v end
+                for _, nd in ipairs(splitDirs) do
+                    local nx, ny = x + self.dirVecs[nd + 1].x, y + self.dirVecs[nd + 1].y
+                    local visitedBranch = {}
+                    for k, v in pairs(visited) do visitedBranch[k] = v end
 
-                while inBounds(self, x1, y1) do
-                    local key1 = x1 .. "," .. y1 .. "," .. d1
-                    if visited1[key1] then break end
-                    visited1[key1] = true
+                    while inBounds(self, nx, ny) do
+                        local keyB = nx .. "," .. ny .. "," .. nd
+                        if visitedBranch[keyB] then break end
+                        visitedBranch[keyB] = true
 
-                    local ch1 = tileAt(self, x1, y1)
-                    if ch1 == '.' then
-                        addBeamSegment(self, x1, y1, d1, -0.45, 0.45)
-                    elseif ch1 == '#' then
-                        break
-                    elseif ch1 == 'T' then
-                        addBeamSegment(self, x1, y1, d1, -0.45, 0.0)
-                        currentHits[x1 .. "," .. y1] = true
-                        self.targetsHit[x1 .. "," .. y1] = true
-                        break
-                    elseif self.mirrorReflect[ch1] then
-                        addBeamSegment(self, x1, y1, d1, -0.15, 0.15)
-                        local newdir1 = self.mirrorReflect[ch1](d1)
-                        if newdir1 then d1 = newdir1 else break end
-                    elseif ch1 == 'S' then
-                        -- Don't allow recursive splitting to prevent infinite loops
-                        break
-                    else
-                        break
+                        local chB = tileAt(self, nx, ny)
+                        if chB == '.' then
+                            addBeamSegment(self, nx, ny, nd, -0.45, 0.45)
+                        elseif chB == '#' then
+                            break
+                        elseif chB == 'T' then
+                            addBeamSegment(self, nx, ny, nd, -0.45, 0.0)
+                            currentHits[nx .. "," .. ny] = true
+                            self.targetsHit[nx .. "," .. ny] = true
+                            break
+                        elseif self.mirrorReflect[chB] then
+                            local incoming_d = nd
+                            local newdirB = self.mirrorReflect[chB](nd)
+                            if newdirB then
+                                table_insert(self.beams, {
+                                    x = nx,
+                                    y = ny,
+                                    incoming_d = incoming_d,
+                                    outgoing_d = newdirB,
+                                    type = "mirror"
+                                })
+                                nd = newdirB
+                            else
+                                addBeamSegment(self, nx, ny, nd, -0.45, 0)
+                                break
+                            end
+                        elseif chB == 'S' then
+                            break
+                        else
+                            break
+                        end
+
+                        nx = nx + self.dirVecs[nd + 1].x
+                        ny = ny + self.dirVecs[nd + 1].y
                     end
-
-                    x1 = x1 + self.dirVecs[d1 + 1].x
-                    y1 = y1 + self.dirVecs[d1 + 1].y
                 end
 
-                -- Process second split beam
-                local d2 = splitDirs[2]
-                local x2, y2 = x + self.dirVecs[d2 + 1].x, y + self.dirVecs[d2 + 1].y
-                local visited2 = {}
-                for k, v in pairs(visited) do visited2[k] = v end
-
-                while inBounds(self, x2, y2) do
-                    local key2 = x2 .. "," .. y2 .. "," .. d2
-                    if visited2[key2] then break end
-                    visited2[key2] = true
-
-                    local ch2 = tileAt(self, x2, y2)
-                    if ch2 == '.' then
-                        addBeamSegment(self, x2, y2, d2, -0.45, 0.45)
-                    elseif ch2 == '#' then
-                        break
-                    elseif ch2 == 'T' then
-                        addBeamSegment(self, x2, y2, d2, -0.45, 0.0)
-                        currentHits[x2 .. "," .. y2] = true
-                        self.targetsHit[x2 .. "," .. y2] = true
-                        break
-                    elseif self.mirrorReflect[ch2] then
-                        addBeamSegment(self, x2, y2, d2, -0.15, 0.15)
-                        local newdir2 = self.mirrorReflect[ch2](d2)
-                        if newdir2 then d2 = newdir2 else break end
-                    elseif ch2 == 'S' then
-                        -- Don't allow recursive splitting to prevent infinite loops
-                        break
-                    else
-                        break
-                    end
-
-                    x2 = x2 + self.dirVecs[d2 + 1].x
-                    y2 = y2 + self.dirVecs[d2 + 1].y
-                end
-
-                break -- Original beam stops at splitter
+                break
             elseif self.charToDir[ch] then
                 addBeamSegment(self, x, y, d, -0.45, 0.45)
             else
@@ -240,10 +215,9 @@ local function computeBeams(self)
         end
     end
 
-    -- Check for newly hit targets and emit particles
+    -- Handle newly hit targets (particles, sounds)
     for coord, _ in pairs(currentHits) do
         if not self.previouslyHit[coord] then
-            -- This target was just hit - emit particles!
             local x, y = coord:match("(%d+),(%d+)")
             x, y = tonumber(x), tonumber(y)
             local screenX = self.gridOffsetX + (x - 1) * self.tileSize + self.tileSize / 2
