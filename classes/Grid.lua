@@ -132,11 +132,21 @@ local function computeBeams(self)
                 self.targetsHit[x .. "," .. y] = true
                 break
             elseif self.mirrorReflect[ch] then
-                addBeamSegment(self, x, y, d, -0.15, 0.15)
+                local incoming_dir = d
                 local newdir = self.mirrorReflect[ch](d)
+
                 if newdir then
+                    -- Store angled beam segment with both directions
+                    table_insert(self.beams, {
+                        x = x, y = y,
+                        incoming_d = incoming_dir,
+                        outgoing_d = newdir,
+                        type = "mirror"
+                    })
                     d = newdir
                 else
+                    -- Blocking mirror - just show incoming beam
+                    addBeamSegment(self, x, y, d, -0.45, 0)
                     break
                 end
             elseif ch == 'S' then
@@ -404,6 +414,27 @@ local function drawBeam(self, cx, cy, ox_start, oy_start, ox_end, oy_end)
     setLineWidth(1)
 end
 
+local function drawAngledBeam(self, cx, cy, incoming_d, outgoing_d)
+    self.colors:setColor("lime_green", 0.95)
+    setLineWidth(2)
+
+    local incoming_dir = self.dirVecs[incoming_d + 1]
+    local outgoing_dir = self.dirVecs[outgoing_d + 1]
+
+    local offset = self.tileSize * 0.45
+
+    local start_x = cx - incoming_dir.x * offset
+    local start_y = cy - incoming_dir.y * offset
+
+    local end_x = cx + outgoing_dir.x * offset
+    local end_y = cy + outgoing_dir.y * offset
+
+    line(start_x, start_y, cx, cy)
+    line(cx, cy, end_x, end_y)
+
+    setLineWidth(1)
+end
+
 local function drawWall(self, sx, sy)
     self.colors:setColor("charcoal_gray", 1)
     rectangle("fill", sx + 4, sy + 4, self.tileSize - 8, self.tileSize - 8)
@@ -490,14 +521,18 @@ function Grid:draw()
         local sy = self.gridOffsetY + (b.y - 1) * self.tileSize
         local cx = sx + self.tileSize / 2
         local cy = sy + self.tileSize / 2
-        local d = b.d
-        local dir = self.dirVecs[d + 1]
-        local ox_start = dir.x * self.tileSize * b.startFrac
-        local oy_start = dir.y * self.tileSize * b.startFrac
-        local ox_end = dir.x * self.tileSize * b.endFrac
-        local oy_end = dir.y * self.tileSize * b.endFrac
 
-        drawBeam(self, cx, cy, ox_start, oy_start, ox_end, oy_end)
+        if b.type == "mirror" then
+            drawAngledBeam(self, cx, cy, b.incoming_d, b.outgoing_d)
+        else
+            local d = b.d
+            local dir = self.dirVecs[d + 1]
+            local ox_start = dir.x * self.tileSize * b.startFrac
+            local oy_start = dir.y * self.tileSize * b.startFrac
+            local ox_end = dir.x * self.tileSize * b.endFrac
+            local oy_end = dir.y * self.tileSize * b.endFrac
+            drawBeam(self, cx, cy, ox_start, oy_start, ox_end, oy_end)
+        end
     end
 
     -- Draw tiles
