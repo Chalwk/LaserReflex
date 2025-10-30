@@ -8,6 +8,7 @@ local WIN_TEXT = "Target reached! Press N for next level."
 local SIDE_TEXT = "Connected: %s"
 local FOOTER_TEXT = "PathPuzzle - Copyright (c) 2025 Jericho Crosby (Chalwk)"
 
+local math_max = math.max
 local string_format = string.format
 
 local love_print = love.graphics.print
@@ -149,7 +150,7 @@ function Game:onKeyPressed(key)
         self.sounds:play("level_change")
     elseif key == 'p' then
         -- Previous level
-        local prevLevel = math.max(1, self.currentLevel - 1)
+        local prevLevel = math_max(1, self.currentLevel - 1)
         self:generateLevel(prevLevel)
         self.winningState = false
         self.sounds:play("level_change")
@@ -198,9 +199,7 @@ end
 -- Get progress percentage (for potential progress bar)
 function Game:getProgress()
     local hitCount, totalTargets = self.grid:getTargetProgress()
-    if totalTargets > 0 then
-        return hitCount / totalTargets
-    end
+    if totalTargets > 0 then return hitCount / totalTargets end
     return 0
 end
 
