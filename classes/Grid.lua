@@ -206,7 +206,7 @@ local function computeBeamPath(self)
 
     -- For laser tile, the incoming direction doesn't matter since it's the source
     -- We'll use the laser's direction as the initial direction for exploration
-    local initialIncomingDir = (laser.d + 2) % 4  -- Still calculate opposite for consistency
+    local initialIncomingDir = (laser.d + 2) % 4 -- Still calculate opposite for consistency
 
     -- Add the laser tile itself as the first segment in the path
     local laserSegment = { x = startX, y = startY, incomingDir = initialIncomingDir }
@@ -290,18 +290,10 @@ local function drawRoadTile(self, tileType, rotation, cx, cy, t)
     end
     setLineWidth(6)
 
-    if connections.up then
-        line(cx, cy, cx, cy - size)
-    end
-    if connections.right then
-        line(cx, cy, cx + size, cy)
-    end
-    if connections.down then
-        line(cx, cy, cx, cy + size)
-    end
-    if connections.left then
-        line(cx, cy, cx - size, cy)
-    end
+    if connections.up then line(cx, cy, cx, cy - size) end
+    if connections.right then line(cx, cy, cx + size, cy) end
+    if connections.down then line(cx, cy, cx, cy + size) end
+    if connections.left then line(cx, cy, cx - size, cy) end
 
     -- Special center symbols for laser and target
     if tileType == "laser" then
