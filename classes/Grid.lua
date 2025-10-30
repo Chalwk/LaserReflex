@@ -5,7 +5,8 @@
 
 local ParticleSystem = require("classes.Particles")
 
-local math_floor, math_sin, math_min, math_max = math.floor, math.sin, math.min, math.max
+local math_floor, math_sin, math_min, math_max, math_cos, math_rad = math.floor, math.sin, math.min, math.max, math.cos,
+    math.rad
 local pairs, ipairs = pairs, ipairs
 local table_insert = table.insert
 
@@ -14,6 +15,7 @@ local rectangle = love.graphics.rectangle
 local circle = love.graphics.circle
 local polygon = love.graphics.polygon
 local line = love.graphics.line
+local arc = love.graphics.arc
 
 local Grid = {}
 Grid.__index = Grid
@@ -53,19 +55,11 @@ function Grid.new(soundManager, colors)
     instance.mirrorReflect = {
         -- Forward slash (/): reflects 90 degrees
         M1 = function(d)
-            -- Up -> Right
-            -- Right -> Up
-            -- Down -> Left
-            -- Left -> Down
             return d == 0 and 1 or d == 1 and 0 or d == 2 and 3 or d == 3 and 2 or nil
         end,
 
         -- Backslash (\): reflects 90 degrees
         M2 = function(d)
-            -- Up -> Left
-            -- Right -> Down
-            -- Down -> Right
-            -- Left -> Up
             return d == 0 and 3 or d == 1 and 2 or d == 2 and 1 or d == 3 and 0 or nil
         end,
 
@@ -75,8 +69,6 @@ function Grid.new(soundManager, colors)
 
     -- Beam Splitter: splits beam into perpendicular directions
     instance.beamSplitter = function(d)
-        -- Up/Down -> Right/Left
-        -- Right/Left -> Up/Down
         return d == 0 or d == 2 and { 1, 3 } or { 0, 2 }
     end
 
@@ -231,7 +223,6 @@ local function computeBeams(self)
 end
 
 function Grid:loadLevel(levelData)
-    --self.gw, self.gh = levelData.size[1], levelData.size[2]
     self.gw, self.gh = 10, 10 -- temp hard-coded grid size
     self.grid, self.lasers, self.beams, self.targetsHit = {}, {}, {}, {}
     self.previouslyHit = {}
@@ -305,103 +296,165 @@ function Grid:getTargetProgress()
 end
 
 local function drawGrid(self, sx, sy)
+    -- Base tile
     self.colors:setColor("moonlit_charcoal", 1)
     rectangle("fill", sx, sy, self.tileSize - 1, self.tileSize - 1)
-    self.colors:setColor("neutral_grey", 1)
+
+    -- Subtle grid pattern
+    self.colors:setColor("neutral_grey", 0.1)
+    for i = 1, 3 do
+        for j = 1, 3 do
+            local px = sx + (i - 1) * (self.tileSize / 3)
+            local py = sy + (j - 1) * (self.tileSize / 3)
+            if (i + j) % 2 == 0 then
+                rectangle("fill", px, py, self.tileSize / 3 - 1, self.tileSize / 3 - 1)
+            end
+        end
+    end
+
+    self.colors:setColor("white", 0.2)
     rectangle("line", sx, sy, self.tileSize - 1, self.tileSize - 1)
 end
 
--- Forward-slash mirror (/)
 local function drawForwardSlash(self, cx, cy)
     local r = self.tileSize * 0.42
-    self.colors:setColor("mirror_base", 1)
+    local t = love.timer.getTime()
+
+    -- Glass base with subtle animation
+    self.colors:setColor("mirror_glass", 0.8 + 0.1 * math_sin(t * 2))
     circle("line", cx, cy, r)
 
-    -- Reflective arc faces top-right, and bottom-left
+    -- Reflective surface with glow
     self.colors:setColor("mirror_glow", 0.9)
     setLineWidth(3)
-    local startAngle, endAngle = math.rad(-45), math.rad(135)
-    love.graphics.arc("line", cx, cy, r, startAngle, endAngle)
+    local startAngle, endAngle = math_rad(-45), math_rad(135)
+    arc("line", cx, cy, r, startAngle, endAngle)
+
     setLineWidth(1)
 end
 
--- Backslash mirror (\)
 local function drawBackSlash(self, cx, cy)
     local r = self.tileSize * 0.42
-    self.colors:setColor("mirror_base", 1)
+    local t = love.timer.getTime()
+
+    -- Glass base
+    self.colors:setColor("mirror_glass", 0.8 + 0.1 * math_sin(t * 2))
     circle("line", cx, cy, r)
 
-    -- Reflective arc faces top-left, and bottom-right
+    -- Reflective surface
     self.colors:setColor("mirror_glow", 0.9)
     setLineWidth(3)
-    local startAngle, endAngle = math.rad(45), math.rad(225)
-    love.graphics.arc("line", cx, cy, r, startAngle, endAngle)
+    local startAngle, endAngle = math_rad(45), math_rad(225)
+    arc("line", cx, cy, r, startAngle, endAngle)
+
     setLineWidth(1)
 end
 
--- Blocking mirror (M3)
 local function drawX(self, cx, cy)
     local r = self.tileSize * 0.42
-    self.colors:setColor("mirror_disabled_outer", 1)
+    local t = love.timer.getTime()
+    local pulse = 0.8 + 0.2 * math_sin(t * 3)
+
+    -- Outer ring with pulse
+    self.colors:setColor("mirror_disabled_outer", pulse)
+    setLineWidth(3)
     circle("line", cx, cy, r)
 
-    self.colors:setColor("mirror_disabled_fill", 0.6)
-    circle("fill", cx, cy, r * 0.6)
+    -- Inner fill
+    self.colors:setColor("mirror_disabled_fill", 0.7)
+    circle("fill", cx, cy, r * 0.7)
 
-    self.colors:setColor("mirror_disabled_highlight", 0.8)
-    setLineWidth(2)
-    circle("line", cx, cy, r * 0.6)
+    -- Animated X
+    self.colors:setColor("mirror_disabled_highlight", 1)
+    setLineWidth(4)
+    local crossSize = r * 0.5
+    line(cx - crossSize, cy - crossSize, cx + crossSize, cy + crossSize)
+    line(cx + crossSize, cy - crossSize, cx - crossSize, cy + crossSize)
+
     setLineWidth(1)
 end
 
--- Beam Splitter (S)
 local function drawSplitter(self, cx, cy)
     local r = self.tileSize * 0.42
     local t = love.timer.getTime()
-    local pulse = 0.75 + 0.25 * math.sin(t * 5)
+    local pulse = 0.7 + 0.3 * math_sin(t * 4)
+    local rotation = t * 2
 
-    -- Outer ring glow
-    self.colors:setColor("splitter_glow", 0.4 * pulse)
-    circle("fill", cx, cy, r * 1.1)
+    -- Outer glow ring
+    self.colors:setColor("splitter_glow", 0.6 * pulse)
+    circle("fill", cx, cy, r * 1.2)
 
-    -- Main circle ring
+    -- Main rotating ring
     self.colors:setColor("splitter_base", 1)
+    setLineWidth(3)
     circle("line", cx, cy, r)
 
-    -- Cross pattern inside
-    setLineWidth(3)
-    self.colors:setColor("splitter_cross", 1)
-    line(cx - r * 0.5, cy, cx + r * 0.5, cy)
-    line(cx, cy - r * 0.5, cx, cy + r * 0.5)
-    setLineWidth(1)
+    -- Animated cross pattern
+    setLineWidth(4)
+    self.colors:setColor("splitter_cross", pulse)
+    local crossR = r * 0.6
+    line(cx - crossR * math_cos(rotation), cy - crossR * math_sin(rotation),
+        cx + crossR * math_cos(rotation), cy + crossR * math_sin(rotation))
+    line(cx + crossR * math_sin(rotation), cy - crossR * math_cos(rotation),
+        cx - crossR * math_sin(rotation), cy + crossR * math_cos(rotation))
 
-    -- Center pulse
+    -- Pulsing core
     self.colors:setColor("splitter_core", 1)
-    circle("fill", cx, cy, r * 0.25 * pulse)
+    circle("fill", cx, cy, r * 0.2 * pulse)
+
+    setLineWidth(1)
 end
 
 local function drawBeam(self, cx, cy, ox_start, oy_start, ox_end, oy_end)
-    self.colors:setColor("lime_green", 0.95)
-    setLineWidth(2)
+    local t = love.timer.getTime()
+    local pulse = 0.8 + 0.2 * math_sin(t * 8)
+
+    -- Glow effect
+    self.colors:setColor("lime_green", 0.3 * pulse)
+    setLineWidth(6)
     line(cx + ox_start, cy + oy_start, cx + ox_end, cy + oy_end)
+
+    -- Core beam
+    self.colors:setColor("lime_green", 0.95 * pulse)
+    setLineWidth(3)
+    line(cx + ox_start, cy + oy_start, cx + ox_end, cy + oy_end)
+
+    -- Bright center line
+    self.colors:setColor("white_highlight", 1)
+    setLineWidth(1)
+    line(cx + ox_start, cy + oy_start, cx + ox_end, cy + oy_end)
+
     setLineWidth(1)
 end
 
 local function drawAngledBeam(self, cx, cy, incoming_d, outgoing_d)
-    self.colors:setColor("lime_green", 0.95)
-    setLineWidth(2)
+    local t = love.timer.getTime()
+    local pulse = 0.8 + 0.2 * math_sin(t * 8)
 
     local incoming_dir = self.dirVecs[incoming_d + 1]
     local outgoing_dir = self.dirVecs[outgoing_d + 1]
-
     local offset = self.tileSize * 0.45
 
     local start_x = cx - incoming_dir.x * offset
     local start_y = cy - incoming_dir.y * offset
-
     local end_x = cx + outgoing_dir.x * offset
     local end_y = cy + outgoing_dir.y * offset
 
+    -- Glow effect
+    self.colors:setColor("lime_green", 0.3 * pulse)
+    setLineWidth(6)
+    line(start_x, start_y, cx, cy)
+    line(cx, cy, end_x, end_y)
+
+    -- Core beam
+    self.colors:setColor("lime_green", 0.95 * pulse)
+    setLineWidth(3)
+    line(start_x, start_y, cx, cy)
+    line(cx, cy, end_x, end_y)
+
+    -- Bright center line
+    self.colors:setColor("white_highlight", 1)
+    setLineWidth(1)
     line(start_x, start_y, cx, cy)
     line(cx, cy, end_x, end_y)
 
@@ -409,72 +462,118 @@ local function drawAngledBeam(self, cx, cy, incoming_d, outgoing_d)
 end
 
 local function drawWall(self, sx, sy)
+    local size = self.tileSize - 8
+    local inset = 3
+
+    -- Main wall body
     self.colors:setColor("charcoal_gray", 1)
-    rectangle("fill", sx + 4, sy + 4, self.tileSize - 8, self.tileSize - 8)
+    rectangle("fill", sx + inset, sy + inset, size, size)
+
+    -- 3D bevel effect
+    self.colors:setColor("wall_highlight", 0.8)
+    line(sx + inset, sy + inset, sx + inset + size, sy + inset) -- top
+    line(sx + inset, sy + inset, sx + inset, sy + inset + size) -- left
+
+    self.colors:setColor("wall_shadow", 0.8)
+    line(sx + inset + size, sy + inset, sx + inset + size, sy + inset + size) -- right
+    line(sx + inset, sy + inset + size, sx + inset + size, sy + inset + size) -- bottom
+
+    -- Inner texture
+    self.colors:setColor("wall_texture", 0.3)
+    for i = 1, 2 do
+        for j = 1, 2 do
+            local px = sx + inset + i * (size / 3)
+            local py = sy + inset + j * (size / 3)
+            rectangle("fill", px, py, 2, 2)
+        end
+    end
 end
 
 local function drawTarget(self, cx, cy, x, y)
     local hit = self.targetsHit[x .. "," .. y]
-
-    -- Center and size
-    local r = self.tileSize * 0.22
-
-    -- Glow pulse (animated with time)
     local t = love.timer.getTime()
     local pulse = 0.8 + 0.2 * math_sin(t * 6)
-    local glowRadius = r * (1.3 + 0.1 * math_sin(t * 3))
+    local r = self.tileSize * 0.22
 
-    -- Outer glow
-    self.colors:setColor(hit and "neon_green_glow" or "red_glow", 0.4)
-    circle("fill", cx, cy, glowRadius * pulse)
+    if hit then
+        -- Hit effect
+        local glowRadius = r * (1.5 + 0.3 * math_sin(t * 8))
+        self.colors:setColor("neon_green_glow", 0.6 * pulse)
+        circle("fill", cx, cy, glowRadius)
+
+        -- Pulsing rings
+        self.colors:setColor("neon_green", 0.4)
+        setLineWidth(2)
+        circle("line", cx, cy, r * 1.8 * pulse)
+        circle("line", cx, cy, r * 1.4 * (1 - pulse * 0.5))
+    end
 
     -- Main target body
     self.colors:setColor(hit and "neon_green" or "red", 1)
     circle("fill", cx, cy, r)
 
-    -- Inner ring highlight
-    self.colors:setColor("white_highlight", 0.2)
+    -- Inner rings
+    self.colors:setColor("white_highlight", 0.8)
     setLineWidth(2)
-    circle("line", cx, cy, r * 0.65)
+    circle("line", cx, cy, r * 0.7)
     circle("line", cx, cy, r * 0.4)
 
-    -- Black outline
-    self.colors:setColor("black_outline", 0.6)
-    setLineWidth(1.5)
+    -- Outer outline
+    self.colors:setColor("black_outline", 0.8)
+    setLineWidth(2.5)
     circle("line", cx, cy, r)
+
+    setLineWidth(1)
 end
 
 local function drawLaser(self, ch, cx, cy)
     local d = self.charToDir[ch]
+    local t = love.timer.getTime()
+    local pulse = 0.7 + 0.3 * math_sin(t * 5)
+    local baseRadius = self.tileSize * 0.25
 
-    -- Base body (metallic turret)
+    -- Outer glow
+    self.colors:setColor("golden_wheat", 0.4 * pulse)
+    circle("fill", cx, cy, baseRadius * 1.4)
+
+    -- Metallic base
     self.colors:setColor("dark_grey", 1)
-    circle("fill", cx, cy, self.tileSize * 0.25)
-    self.colors:setColor("soft_steel", 1)
-    circle("line", cx, cy, self.tileSize * 0.25)
+    circle("fill", cx, cy, baseRadius)
 
-    -- Inner glowing core
-    self.colors:setColor("pastel_yellow", 0.9)
-    circle("fill", cx, cy, self.tileSize * 0.12)
+    -- Metallic rings
+    self.colors:setColor("soft_steel", 0.9)
+    setLineWidth(2)
+    circle("line", cx, cy, baseRadius)
+    circle("line", cx, cy, baseRadius * 0.7)
 
-    -- Directional nozzle
+    -- Pulsing core
+    self.colors:setColor("pastel_yellow", pulse)
+    circle("fill", cx, cy, baseRadius * 0.35 * pulse)
+
+    -- Directional nozzle with glow
     self.colors:setColor("golden_yellow", 1)
-    local nozzleLength = self.tileSize * 0.22
-    local nozzleWidth = self.tileSize * 0.09
+    local nozzleLength = self.tileSize * 0.25
+    local nozzleWidth = self.tileSize * 0.1
+
     if d == 0 then
         polygon("fill", cx, cy - nozzleLength, cx - nozzleWidth, cy, cx + nozzleWidth, cy)
+        -- Nozzle glow
+        self.colors:setColor("golden_wheat", 0.6)
+        polygon("line", cx, cy - nozzleLength, cx - nozzleWidth, cy, cx + nozzleWidth, cy)
     elseif d == 1 then
         polygon("fill", cx + nozzleLength, cy, cx, cy - nozzleWidth, cx, cy + nozzleWidth)
+        self.colors:setColor("golden_wheat", 0.6)
+        polygon("line", cx + nozzleLength, cy, cx, cy - nozzleWidth, cx, cy + nozzleWidth)
     elseif d == 2 then
         polygon("fill", cx, cy + nozzleLength, cx - nozzleWidth, cy, cx + nozzleWidth, cy)
+        self.colors:setColor("golden_wheat", 0.6)
+        polygon("line", cx, cy + nozzleLength, cx - nozzleWidth, cy, cx + nozzleWidth, cy)
     elseif d == 3 then
         polygon("fill", cx - nozzleLength, cy, cx, cy - nozzleWidth, cx, cy + nozzleWidth)
+        self.colors:setColor("golden_wheat", 0.6)
+        polygon("line", cx - nozzleLength, cy, cx, cy - nozzleWidth, cx, cy + nozzleWidth)
     end
 
-    -- Glow ring
-    self.colors:setColor("golden_wheat", 0.3)
-    setLineWidth(3)
-    circle("line", cx, cy, self.tileSize * 0.28)
     setLineWidth(1)
 end
 
@@ -524,7 +623,6 @@ function Grid:draw()
             elseif self.charToDir[ch] then
                 drawLaser(self, ch, cx, cy)
             elseif self.mirrorReflect[ch] then
-                setLineWidth(3)
                 if ch == "M1" then
                     drawForwardSlash(self, cx, cy)
                 elseif ch == "M2" then
@@ -532,7 +630,6 @@ function Grid:draw()
                 elseif ch == "M3" then
                     drawX(self, cx, cy)
                 end
-                setLineWidth(1)
             elseif ch == 'S' then
                 drawSplitter(self, cx, cy)
             end
