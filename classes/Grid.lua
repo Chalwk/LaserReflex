@@ -370,29 +370,23 @@ end
 local function drawSplitter(self, cx, cy, t)
     local r = self.tileSize * 0.42
     local pulse = 0.7 + 0.3 * math_sin(t * 4)
-    local rotation = t * 2
 
     -- Outer glow ring
-    self.colors:setColor("splitter_glow", 0.6 * pulse)
-    circle("fill", cx, cy, r * 1.2)
+    self.colors:setColor("splitter_glow", 0.4 * pulse)
+    circle("fill", cx, cy, r * 1.1)
 
-    -- Main rotating ring
-    self.colors:setColor("splitter_base", 1)
+    -- Static mirror-like cross
+    self.colors:setColor("mirror_glow", 0.9)
     setLineWidth(3)
-    circle("line", cx, cy, r)
 
-    -- Animated cross pattern
-    setLineWidth(4)
-    self.colors:setColor("splitter_cross", pulse)
-    local crossR = r * 0.6
-    line(cx - crossR * math_cos(rotation), cy - crossR * math_sin(rotation),
-        cx + crossR * math_cos(rotation), cy + crossR * math_sin(rotation))
-    line(cx + crossR * math_sin(rotation), cy - crossR * math_cos(rotation),
-        cx - crossR * math_sin(rotation), cy + crossR * math_cos(rotation))
+    -- Horizontal line
+    line(cx - r * 0.7, cy, cx + r * 0.7, cy)
+    -- Vertical line
+    line(cx, cy - r * 0.7, cx, cy + r * 0.7)
 
-    -- Pulsing core
+    -- Core circle
     self.colors:setColor("splitter_core", 1)
-    circle("fill", cx, cy, r * 0.2 * pulse)
+    circle("fill", cx, cy, r * 0.2)
 
     setLineWidth(1)
 end
