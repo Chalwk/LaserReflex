@@ -348,7 +348,7 @@ local function drawGradualBeam(self, t)
     local progress = math_min(self.beamProgress, #self.activeBeamPath)
 
     -- Draw the beam segments up to the current progress
-    for i = 1, math_floor(progress) do
+    for i = 2, math_floor(progress) do
         local segment = self.activeBeamPath[i]
         local sx = self.gridOffsetX + (segment.x - 1) * self.tileSize + self.tileSize / 2
         local sy = self.gridOffsetY + (segment.y - 1) * self.tileSize + self.tileSize / 2
@@ -359,21 +359,20 @@ local function drawGradualBeam(self, t)
         circle("fill", sx, sy, self.tileSize * 0.12)
 
         -- Draw connection to previous segment (if exists)
-        if i > 1 then
-            local prev = self.activeBeamPath[i - 1]
-            local psx = self.gridOffsetX + (prev.x - 1) * self.tileSize + self.tileSize / 2
-            local psy = self.gridOffsetY + (prev.y - 1) * self.tileSize + self.tileSize / 2
+        local prev = self.activeBeamPath[i - 1]
+        local psx = self.gridOffsetX + (prev.x - 1) * self.tileSize + self.tileSize / 2
+        local psy = self.gridOffsetY + (prev.y - 1) * self.tileSize + self.tileSize / 2
 
-            -- Connection line with glow
-            self.colors:setColor("lime_green", 0.4 * pulse)
-            setLineWidth(3)
-            line(psx, psy, sx, sy)
+        -- Connection line with glow
+        self.colors:setColor("lime_green", 0.4 * pulse)
+        setLineWidth(3)
+        line(psx, psy, sx, sy)
 
-            self.colors:setColor("lime_green", 0.9 * pulse)
-            setLineWidth(3)
-            line(psx, psy, sx, sy)
-        end
+        self.colors:setColor("lime_green", 0.9 * pulse)
+        setLineWidth(3)
+        line(psx, psy, sx, sy)
     end
+
 
     -- Draw partial progress to next segment
     local partial = progress - math_floor(progress)
