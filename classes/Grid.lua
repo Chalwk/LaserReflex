@@ -316,10 +316,8 @@ local function drawGrid(self, sx, sy)
     rectangle("line", sx, sy, self.tileSize - 1, self.tileSize - 1)
 end
 
-local function drawForwardSlash(self, cx, cy)
-    local r = self.tileSize * 0.42
-    local t = love.timer.getTime()
-
+-- Enhanced forward-slash mirror with filled back side
+local function drawForwardSlash(self, cx, cy, r, t)
     -- Glass base with subtle animation
     self.colors:setColor("mirror_glass", 0.8 + 0.1 * math_sin(t * 2))
     circle("line", cx, cy, r)
@@ -333,10 +331,8 @@ local function drawForwardSlash(self, cx, cy)
     setLineWidth(1)
 end
 
-local function drawBackSlash(self, cx, cy)
-    local r = self.tileSize * 0.42
-    local t = love.timer.getTime()
-
+-- Enhanced backslash mirror with filled back side
+local function drawBackSlash(self, cx, cy, r, t)
     -- Glass base
     self.colors:setColor("mirror_glass", 0.8 + 0.1 * math_sin(t * 2))
     circle("line", cx, cy, r)
@@ -350,9 +346,8 @@ local function drawBackSlash(self, cx, cy)
     setLineWidth(1)
 end
 
-local function drawX(self, cx, cy)
+local function drawX(self, cx, cy, t)
     local r = self.tileSize * 0.42
-    local t = love.timer.getTime()
     local pulse = 0.8 + 0.2 * math_sin(t * 3)
 
     -- Outer ring with pulse
@@ -374,9 +369,8 @@ local function drawX(self, cx, cy)
     setLineWidth(1)
 end
 
-local function drawSplitter(self, cx, cy)
+local function drawSplitter(self, cx, cy, t)
     local r = self.tileSize * 0.42
-    local t = love.timer.getTime()
     local pulse = 0.7 + 0.3 * math_sin(t * 4)
     local rotation = t * 2
 
@@ -405,8 +399,7 @@ local function drawSplitter(self, cx, cy)
     setLineWidth(1)
 end
 
-local function drawBeam(self, cx, cy, ox_start, oy_start, ox_end, oy_end)
-    local t = love.timer.getTime()
+local function drawBeam(self, cx, cy, ox_start, oy_start, ox_end, oy_end, t)
     local pulse = 0.8 + 0.2 * math_sin(t * 8)
 
     -- Glow effect
@@ -427,8 +420,7 @@ local function drawBeam(self, cx, cy, ox_start, oy_start, ox_end, oy_end)
     setLineWidth(1)
 end
 
-local function drawAngledBeam(self, cx, cy, incoming_d, outgoing_d)
-    local t = love.timer.getTime()
+local function drawAngledBeam(self, cx, cy, incoming_d, outgoing_d, t)
     local pulse = 0.8 + 0.2 * math_sin(t * 8)
 
     local incoming_dir = self.dirVecs[incoming_d + 1]
@@ -489,9 +481,8 @@ local function drawWall(self, sx, sy)
     end
 end
 
-local function drawTarget(self, cx, cy, x, y)
+local function drawTarget(self, cx, cy, x, y, t)
     local hit = self.targetsHit[x .. "," .. y]
-    local t = love.timer.getTime()
     local pulse = 0.8 + 0.2 * math_sin(t * 6)
     local r = self.tileSize * 0.22
 
@@ -526,9 +517,8 @@ local function drawTarget(self, cx, cy, x, y)
     setLineWidth(1)
 end
 
-local function drawLaser(self, ch, cx, cy)
+local function drawLaser(self, ch, cx, cy, t)
     local d = self.charToDir[ch]
-    local t = love.timer.getTime()
     local pulse = 0.7 + 0.3 * math_sin(t * 5)
     local baseRadius = self.tileSize * 0.25
 
@@ -578,6 +568,8 @@ local function drawLaser(self, ch, cx, cy)
 end
 
 function Grid:draw()
+    local t = love.timer.getTime()
+
     -- Draw grid background
     for y = 1, self.gh do
         for x = 1, self.gw do
@@ -595,7 +587,7 @@ function Grid:draw()
         local cy = sy + self.tileSize / 2
 
         if b.type == "mirror" then
-            drawAngledBeam(self, cx, cy, b.incoming_d, b.outgoing_d)
+            drawAngledBeam(self, cx, cy, b.incoming_d, b.outgoing_d, t)
         else
             local d = b.d
             local dir = self.dirVecs[d + 1]
@@ -603,9 +595,11 @@ function Grid:draw()
             local oy_start = dir.y * self.tileSize * b.startFrac
             local ox_end = dir.x * self.tileSize * b.endFrac
             local oy_end = dir.y * self.tileSize * b.endFrac
-            drawBeam(self, cx, cy, ox_start, oy_start, ox_end, oy_end)
+            drawBeam(self, cx, cy, ox_start, oy_start, ox_end, oy_end, t)
         end
     end
+
+    local r = self.tileSize * 0.42
 
     -- Draw tiles
     for y = 1, self.gh do
@@ -619,19 +613,19 @@ function Grid:draw()
             if ch == '#' then
                 drawWall(self, sx, sy)
             elseif ch == 'T' then
-                drawTarget(self, cx, cy, x, y)
+                drawTarget(self, cx, cy, x, y, t)
             elseif self.charToDir[ch] then
-                drawLaser(self, ch, cx, cy)
+                drawLaser(self, ch, cx, cy, t)
             elseif self.mirrorReflect[ch] then
                 if ch == "M1" then
-                    drawForwardSlash(self, cx, cy)
+                    drawForwardSlash(self, cx, cy, r, t)
                 elseif ch == "M2" then
-                    drawBackSlash(self, cx, cy)
+                    drawBackSlash(self, cx, cy, r, t)
                 elseif ch == "M3" then
-                    drawX(self, cx, cy)
+                    drawX(self, cx, cy, t)
                 end
             elseif ch == 'S' then
-                drawSplitter(self, cx, cy)
+                drawSplitter(self, cx, cy, t)
             end
         end
     end

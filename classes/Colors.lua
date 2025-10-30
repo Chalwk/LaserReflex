@@ -25,6 +25,7 @@ function Colors.new()
         medium_blue = { 0.2, 0.5, 0.8 },
         medium_grey = { 0.5, 0.5, 0.5 },
         mirror_base = { 0.6, 0.65, 0.7 },
+        mirror_back = { 100, 100, 110 },
         mirror_disabled_fill = { 0.1, 0.1, 0.12 },
         mirror_disabled_highlight = { 0.6, 0.6, 0.65 },
         mirror_disabled_outer = { 0.35, 0.35, 0.4 },
