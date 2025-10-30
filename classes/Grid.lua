@@ -196,21 +196,28 @@ local function computeBeamPath(self)
     local visited = {}
     local path = {}
 
-    -- Start from the tile in front of the laser
-    local startX = laser.x + self.dirVecs[laser.d + 1].x
-    local startY = laser.y + self.dirVecs[laser.d + 1].y
+    local startX = laser.x
+    local startY = laser.y
 
     -- Debug: print starting position
     print(string_format("Laser at (%d,%d) facing %d", laser.x, laser.y, laser.d))
     print(string_format("Starting beam at (%d,%d)", startX, startY))
     print(string_format("Target at (%d,%d)", self.targetX, self.targetY))
 
-    -- Calculate initial incoming direction based on laser direction
-    -- The beam enters the first tile from the opposite side of the laser direction
-    local initialIncomingDir = (laser.d + 2) % 4
+    -- For laser tile, the incoming direction doesn't matter since it's the source
+    -- We'll use the laser's direction as the initial direction for exploration
+    local initialIncomingDir = (laser.d + 2) % 4  -- Still calculate opposite for consistency
 
-    -- Start exploration
-    local found = explore(self, startX, startY, initialIncomingDir, visited, path)
+    -- Add the laser tile itself as the first segment in the path
+    local laserSegment = { x = startX, y = startY, incomingDir = initialIncomingDir }
+    table_insert(path, laserSegment)
+
+    -- Start exploration from the next tile in the laser's direction
+    local nextX = startX + self.dirVecs[laser.d + 1].x
+    local nextY = startY + self.dirVecs[laser.d + 1].y
+
+    -- Start exploration from the next tile
+    local found = explore(self, nextX, nextY, initialIncomingDir, visited, path)
 
     if not found then
         print("No path found to target")
@@ -342,90 +349,6 @@ local function drawRoadTile(self, tileType, rotation, cx, cy, t)
     setLineWidth(1)
 end
 
-local function drawLaser(self, direction, cx, cy, t)
-    local pulse = 0.7 + 0.3 * math_sin(t * 5)
-    local baseRadius = self.tileSize * 0.25
-
-    -- Outer glow
-    self.colors:setColor("golden_wheat", 0.4 * pulse)
-    circle("fill", cx, cy, baseRadius * 1.4)
-
-    -- Metallic base
-    self.colors:setColor("dark_grey", 1)
-    circle("fill", cx, cy, baseRadius)
-
-    -- Metallic rings
-    self.colors:setColor("soft_steel", 0.9)
-    setLineWidth(2)
-    circle("line", cx, cy, baseRadius)
-    circle("line", cx, cy, baseRadius * 0.7)
-
-    -- Pulsing core
-    self.colors:setColor("pastel_yellow", pulse)
-    circle("fill", cx, cy, baseRadius * 0.35 * pulse)
-
-    -- Directional nozzle with glow
-    self.colors:setColor("golden_yellow", 1)
-    local nozzleLength = self.tileSize * 0.25
-    local nozzleWidth = self.tileSize * 0.1
-
-    if direction == 0 then -- up
-        polygon("fill", cx, cy - nozzleLength, cx - nozzleWidth, cy, cx + nozzleWidth, cy)
-        self.colors:setColor("golden_wheat", 1)
-        polygon("line", cx, cy - nozzleLength, cx - nozzleWidth, cy, cx + nozzleWidth, cy)
-    elseif direction == 1 then -- right
-        polygon("fill", cx + nozzleLength, cy, cx, cy - nozzleWidth, cx, cy + nozzleWidth)
-        self.colors:setColor("golden_wheat", 1)
-        polygon("line", cx + nozzleLength, cy, cx, cy - nozzleWidth, cx, cy + nozzleWidth)
-    elseif direction == 2 then -- down
-        polygon("fill", cx, cy + nozzleLength, cx - nozzleWidth, cy, cx + nozzleWidth, cy)
-        self.colors:setColor("golden_wheat", 1)
-        polygon("line", cx, cy + nozzleLength, cx - nozzleWidth, cy, cx + nozzleWidth, cy)
-    elseif direction == 3 then -- left
-        polygon("fill", cx - nozzleLength, cy, cx, cy - nozzleWidth, cx, cy + nozzleWidth)
-        self.colors:setColor("golden_wheat", 1)
-        polygon("line", cx - nozzleLength, cy, cx, cy - nozzleWidth, cx, cy + nozzleWidth)
-    end
-
-    setLineWidth(1)
-end
-
-local function drawTarget(self, cx, cy, x, y, t)
-    local hit = self.targetsHit[x .. "," .. y]
-    local pulse = 0.8 + 0.2 * math_sin(t * 6)
-    local r = self.tileSize * 0.22
-
-    if hit then
-        -- Hit effect
-        local glowRadius = r * (1.5 + 0.3 * math_sin(t * 8))
-        self.colors:setColor("neon_green_glow", 0.6 * pulse)
-        circle("fill", cx, cy, glowRadius)
-
-        -- Pulsing rings
-        self.colors:setColor("neon_green", 0.4)
-        setLineWidth(2)
-        circle("line", cx, cy, r * 1.8 * pulse)
-        circle("line", cx, cy, r * 1.4 * (1 - pulse * 0.5))
-    end
-
-    -- Main target body
-    self.colors:setColor(hit and "neon_green" or "red", 1)
-    circle("fill", cx, cy, r)
-
-    -- Inner rings
-    self.colors:setColor("white_highlight", 0.8)
-    setLineWidth(2)
-    circle("line", cx, cy, r * 0.7)
-    circle("line", cx, cy, r * 0.4)
-
-    -- Outer outline
-    self.colors:setColor("black_outline", 0.8)
-    setLineWidth(2.5)
-    circle("line", cx, cy, r)
-
-    setLineWidth(1)
-end
-
 local function drawGradualBeam(self, t)
     if #self.activeBeamPath == 0 then return end
 
@@ -451,11 +374,11 @@ local function drawGradualBeam(self, t)
 
             -- Connection line with glow
             self.colors:setColor("lime_green", 0.4 * pulse)
-            setLineWidth(12)
+            setLineWidth(3)
             line(psx, psy, sx, sy)
 
             self.colors:setColor("lime_green", 0.9 * pulse)
-            setLineWidth(6)
+            setLineWidth(3)
             line(psx, psy, sx, sy)
         end
     end
@@ -575,11 +498,7 @@ function Grid:update(dt)
         self.beamProgress = self.beamProgress + self.beamSpeed * dt
         if self.beamProgress > #self.activeBeamPath then
             self.beamProgress = #self.activeBeamPath
-
-            -- Emit particles when beam first reaches target
             if self.targetsHit[tostring(self.targetX) .. "," .. tostring(self.targetY)] and not self.previouslyHit then
-                local screenX = self.gridOffsetX + (self.targetX - 1) * self.tileSize + self.tileSize / 2
-                local screenY = self.gridOffsetY + (self.targetY - 1) * self.tileSize + self.tileSize / 2
                 self.sounds:play("connect")
                 self.previouslyHit = true
             end
