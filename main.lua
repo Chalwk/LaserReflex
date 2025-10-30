@@ -24,13 +24,11 @@ function love.load()
     background = PerlinBackground.new(colors)
 
     local w, h = love.graphics.getDimensions()
-    game:onResize(w, h)
 
-    -- Generate first level instead of loading
+    -- Generate first level first, THEN resize
     game:generateLevel(1)
 
-    -- Force initial grid centering
-    grid:calculateTileSize(w, h)
+    game:onResize(w, h)
 end
 
 function love.resize(w, h)

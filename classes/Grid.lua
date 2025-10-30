@@ -534,6 +534,9 @@ function Grid:loadLevel(levelData)
         self.targetX, self.targetY = tx, ty
     end
 
+    local w, h = love.graphics.getDimensions()
+    self:calculateTileSize(w, h)
+
     computeBeamPath(self)
 end
 
