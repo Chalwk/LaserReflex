@@ -88,11 +88,11 @@ function Grid.new(soundManager, colors)
             { up = false, right = false, down = true,  left = false },
             { up = false, right = false, down = false, left = true }
         },
-        target = { -- Target acts as a dead_end that receives light
-            { up = true,  right = false, down = false, left = false },
-            { up = false, right = true,  down = false, left = false },
-            { up = false, right = false, down = true,  left = false },
-            { up = false, right = false, down = false, left = true }
+        target = { -- Target receives light from any direction
+            { up = true, right = true, down = true, left = true },
+            { up = true, right = true, down = true, left = true },
+            { up = true, right = true, down = true, left = true },
+            { up = true, right = true, down = true, left = true }
         }
     }
 
@@ -303,7 +303,7 @@ local function drawRoadTile(self, tileType, rotation, cx, cy, t)
         local pulse = 0.7 + 0.3 * math_sin(t * 5)
         local emitterSize = size * 0.4
 
-        if rotation == 0 then -- up
+        if rotation == 0 then     -- up
             polygon("fill", cx, cy - emitterSize, cx - emitterSize, cy + emitterSize, cx + emitterSize, cy + emitterSize)
         elseif rotation == 1 then -- right
             polygon("fill", cx + emitterSize, cy, cx - emitterSize, cy - emitterSize, cx - emitterSize, cy + emitterSize)
@@ -316,7 +316,6 @@ local function drawRoadTile(self, tileType, rotation, cx, cy, t)
         -- Pulsing core
         self.colors:setColor("pastel_yellow", pulse)
         circle("fill", cx, cy, size * 0.15)
-
     elseif tileType == "target" then
         -- Target symbol (bullseye)
         self.colors:setColor("white_highlight", 1)
