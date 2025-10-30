@@ -316,7 +316,6 @@ local function drawGrid(self, sx, sy)
     rectangle("line", sx, sy, self.tileSize - 1, self.tileSize - 1)
 end
 
--- Enhanced forward-slash mirror with filled back side
 local function drawForwardSlash(self, cx, cy, r, t)
     -- Glass base with subtle animation
     self.colors:setColor("mirror_glass", 0.8 + 0.1 * math_sin(t * 2))
@@ -331,7 +330,6 @@ local function drawForwardSlash(self, cx, cy, r, t)
     setLineWidth(1)
 end
 
--- Enhanced backslash mirror with filled back side
 local function drawBackSlash(self, cx, cy, r, t)
     -- Glass base
     self.colors:setColor("mirror_glass", 0.8 + 0.1 * math_sin(t * 2))
