@@ -26,6 +26,10 @@ end
 
 function SoundManager:play(soundName, loop)
     if loop then self.sounds[soundName]:setLooping(true) end
+
+    -- nil check for sound:
+    if not self.sounds[soundName] then return end
+
     self.sounds[soundName]:stop()
     self.sounds[soundName]:play()
 end

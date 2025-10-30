@@ -189,16 +189,6 @@ local function drawLaserGrid(self)
         line(0, y + offset, SCREEN_WIDTH, y + offset)
     end
 
-    -- Corner markers
-    local markerSize = 15
-    local markerPulse = 0.5 + math_sin(self.time * 4) * 0.3
-    self.colors:setColor("neon_green_glow", markerPulse)
-
-    rectangle("fill", 10, 10, markerSize, markerSize)
-    rectangle("fill", SCREEN_WIDTH - 25, 10, markerSize, markerSize)
-    rectangle("fill", 10, SCREEN_HEIGHT - 25, markerSize, markerSize)
-    rectangle("fill", SCREEN_WIDTH - 25, SCREEN_HEIGHT - 25, markerSize, markerSize)
-
     pop()
 end
 

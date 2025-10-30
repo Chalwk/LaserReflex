@@ -6,27 +6,31 @@
 local Grid = require("classes.Grid")
 local Game = require("classes.Game")
 local Colors = require("classes.Colors")
-local LevelManager = require("classes.Levels")
 local SoundManager = require("classes.SoundManager")
+local LevelGenerator = require("classes.LevelGenerator")
 local PerlinBackground = require("classes.PerlinBackground")
 
-local game, grid, levelManager, background
+local game, grid, levelGenerator, background
 
 function love.load()
     local soundManager = SoundManager.new()
-    levelManager = LevelManager.new()
+
+    levelGenerator = LevelGenerator.new()
 
     local colors = Colors.new()
-
     grid = Grid.new(soundManager, colors)
-    game = Game.new(levelManager, grid, soundManager, colors)
+    game = Game.new(levelGenerator, grid, soundManager, colors)
 
     background = PerlinBackground.new(colors)
 
     local w, h = love.graphics.getDimensions()
     game:onResize(w, h)
 
-    game:loadLevel(1)
+    -- Generate first level instead of loading
+    game:generateLevel(1)
+
+    -- Force initial grid centering
+    grid:calculateTileSize(w, h)
 end
 
 function love.resize(w, h)
