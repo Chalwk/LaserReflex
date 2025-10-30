@@ -59,6 +59,26 @@ function LevelManager.new()
                 { x = 7, y = 9, type = "target" },
                 { x = 5, y = 6, type = "splitter" }
             }
+        },
+        {
+            -- Level 5
+            name = "Mirror Maze",
+            map = {
+                { x = 2, y = 2, type = "laser",  dir = "right" },
+                { x = 2, y = 8, type = "target" },
+                { x = 5, y = 2, type = "mirror", state = "M3" },
+                { x = 5, y = 5, type = "mirror", state = "M3" },
+                { x = 8, y = 5, type = "mirror", state = "M3" },
+                { x = 8, y = 8, type = "mirror", state = "M3" },
+                { x = 3, y = 4, type = "mirror", state = "M3" },
+                { x = 6, y = 3, type = "mirror", state = "M3" },
+                { x = 4, y = 7, type = "mirror", state = "M3" },
+                { x = 7, y = 6, type = "mirror", state = "M3" },
+                { x = 4, y = 3, type = "wall" },
+                { x = 6, y = 4, type = "wall" },
+                { x = 3, y = 6, type = "wall" },
+                { x = 7, y = 7, type = "wall" }
+            }
         }
     }
 
