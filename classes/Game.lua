@@ -1,4 +1,4 @@
--- LaserReflex - Love2D
+-- Pathfinder - Love2D
 -- Tile-based puzzle: rotate mirrors to direct lasers into targets.
 -- License: MIT
 -- Copyright (c) 2025 Jericho Crosby (Chalwk)
@@ -7,7 +7,7 @@ local HEADER_TEXT = "Level: %d"
 local TIMER_TEXT = "Time: %02d:%02d"
 local WIN_TEXT = "All targets reached! Press N for next level. Time: %02d:%02d"
 local SIDE_TEXT = "Targets: %d/%d"
-local FOOTER_TEXT = "LaserReflex - Copyright (c) 2025 Jericho Crosby (Chalwk)"
+local FOOTER_TEXT = "PathFinder - Copyright (c) 2025 Jericho Crosby (Chalwk)"
 
 local string_format = string.format
 

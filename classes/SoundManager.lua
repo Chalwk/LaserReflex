@@ -1,4 +1,4 @@
--- LaserReflex - Love2D
+-- Pathfinder - Love2D
 -- Tile-based puzzle: rotate mirrors to direct lasers into targets.
 -- License: MIT
 -- Copyright (c) 2025 Jericho Crosby (Chalwk)
