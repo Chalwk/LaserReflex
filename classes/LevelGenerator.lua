@@ -16,6 +16,24 @@ local love_random = love.math.random
 local TILE_TYPES = { "straight", "curve", "t_junction", "cross", "dead_end" }
 local WEIGHTS = { 0.3, 0.25, 0.2, 0.1, 0.15 } -- Probability weights
 
+-- Precomputed cumulative weights
+local CUMULATIVE_WEIGHTS = {}
+do
+    local total = 0
+    for i, weight in ipairs(WEIGHTS) do
+        total = total + weight
+        CUMULATIVE_WEIGHTS[i] = total
+    end
+end
+
+-- Predefined constants
+local DIRECTIONS = {
+    {dx = 1, dy = 0}, {dx = -1, dy = 0},
+    {dx = 0, dy = 1}, {dx = 0, dy = -1}
+}
+
+local DIST_COMPARE = function(a, b) return a.dist < b.dist end
+
 local LevelGenerator = {}
 LevelGenerator.__index = LevelGenerator
 
@@ -85,16 +103,11 @@ local function determineTileType(connections)
 end
 
 local function generatePath(levelData)
+    -- Cache levelData properties
     local gridSize = levelData.gridSize
     local complexity = levelData.complexity
-
-    -- Initialize empty grid
-    for y = 1, gridSize do
-        levelData.tiles[y] = {}
-        for x = 1, gridSize do
-            levelData.tiles[y][x] = { type = "empty", rotation = 0 }
-        end
-    end
+    local targetX, targetY = levelData.target.x, levelData.target.y
+    local tiles = levelData.tiles
 
     -- Start with laser position
     local currentX, currentY = levelData.laser.x, levelData.laser.y
@@ -103,20 +116,16 @@ local function generatePath(levelData)
     visited[currentY * gridSize + currentX] = true
 
     -- A* pathfinding to target
-    while currentX ~= levelData.target.x or currentY ~= levelData.target.y do
+    while currentX ~= targetX or currentY ~= targetY do
         -- Get possible moves
         local moves = {}
-        local directions = {
-            { dx = 1, dy = 0 }, { dx = -1, dy = 0 },
-            { dx = 0, dy = 1 }, { dx = 0, dy = -1 }
-        }
 
-        for _, dir in ipairs(directions) do
+        for _, dir in ipairs(DIRECTIONS) do
             local newX, newY = currentX + dir.dx, currentY + dir.dy
             if newX >= 1 and newX <= gridSize and newY >= 1 and newY <= gridSize then
                 local key = newY * gridSize + newX
                 if not visited[key] then
-                    local distToTarget = math_abs(newX - levelData.target.x) + math_abs(newY - levelData.target.y)
+                    local distToTarget = math_abs(newX - targetX) + math_abs(newY - targetY)
                     table_insert(moves, { x = newX, y = newY, dist = distToTarget })
                 end
             end
@@ -132,7 +141,7 @@ local function generatePath(levelData)
             end
         else
             -- Choose next move (prefer moves toward target, but add some randomness)
-            table_sort(moves, function(a, b) return a.dist < b.dist end)
+            table_sort(moves, DIST_COMPARE)
 
             local chosenIndex = 1
             if #moves > 1 and love_random() < complexity then
@@ -145,10 +154,14 @@ local function generatePath(levelData)
         end
     end
 
-    -- Place path tiles
+    -- Place path tiles - FIXED: Ensure the tile exists before accessing it
     for i, pos in ipairs(path) do
         local connections = getTileConnections(path, i)
-        levelData.tiles[pos.y][pos.x] = {
+        -- Initialize the row if it doesn't exist
+        if not tiles[pos.y] then
+            tiles[pos.y] = {}
+        end
+        tiles[pos.y][pos.x] = {
             type = determineTileType(connections),
             rotation = 0, -- Will be randomized later
             connections = connections
@@ -157,16 +170,23 @@ local function generatePath(levelData)
 end
 
 local function fillRemainingTiles(levelData)
-    for y = 1, levelData.gridSize do
-        for x = 1, levelData.gridSize do
-            if levelData.tiles[y][x].type == "empty" then
-                -- Weighted random selection
-                local r = love_random()
-                local cumulative = 0
-                for i, weight in ipairs(WEIGHTS) do
-                    cumulative = cumulative + weight
-                    if r <= cumulative then
-                        levelData.tiles[y][x] = {
+    local gridSize = levelData.gridSize
+    local tiles = levelData.tiles
+    local totalWeight = CUMULATIVE_WEIGHTS[#CUMULATIVE_WEIGHTS]
+
+    for y = 1, gridSize do
+        -- Ensure the row exists
+        if not tiles[y] then
+            tiles[y] = {}
+        end
+        for x = 1, gridSize do
+            -- Check if tile exists and is empty, or if tile doesn't exist
+            if not tiles[y][x] or tiles[y][x].type == "empty" then
+                -- Weighted random selection using precomputed cumulative weights
+                local r = love_random() * totalWeight
+                for i = 1, #TILE_TYPES do
+                    if r <= CUMULATIVE_WEIGHTS[i] then
+                        tiles[y][x] = {
                             type = TILE_TYPES[i],
                             rotation = love_random(0, 3)
                         }
@@ -179,10 +199,15 @@ local function fillRemainingTiles(levelData)
 end
 
 local function randomizeRotations(levelData)
-    for y = 1, levelData.gridSize do
-        for x = 1, levelData.gridSize do
-            if levelData.tiles[y][x].type ~= "empty" then
-                levelData.tiles[y][x].rotation = love_random(0, 3)
+    local gridSize = levelData.gridSize
+    local tiles = levelData.tiles
+
+    for y = 1, gridSize do
+        if tiles[y] then
+            for x = 1, gridSize do
+                if tiles[y][x] and tiles[y][x].type ~= "empty" then
+                    tiles[y][x].rotation = love_random(0, 3)
+                end
             end
         end
     end

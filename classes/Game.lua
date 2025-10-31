@@ -6,7 +6,7 @@
 local HEADER_TEXT = "Level: %d"
 local WIN_TEXT = "Target reached! Press N for next level."
 local SIDE_TEXT = "Connected: %s"
-local FOOTER_TEXT = "PathPuzzle - Copyright (c) 2025 Jericho Crosby (Chalwk)"
+local FOOTER_TEXT = "LaserRefelx - Copyright (c) 2025 Jericho Crosby (Chalwk)"
 
 local math_max = math.max
 local string_format = string.format
@@ -82,16 +82,15 @@ function Game:draw()
     -- Draw controls help
     setFont(self.smallFont)
     self.colors:setColor("white", 0.7)
-    love_print("Controls:", 8, screenHeight - 80)
-    love_print("Left-click: Rotate tile clockwise", 8, screenHeight - 65)
-    love_print("Right-click: Rotate tile counter-clockwise", 8, screenHeight - 50)
+    love_print("Controls:", 8, screenHeight - 65)
+    love_print("Left/Right click: Rotate tile", 8, screenHeight - 50)
     love_print("Q/E: Rotate selected tile", 8, screenHeight - 35)
 
     self.colors:setColor("white", 0.7)
-    love_print("R: Restart level | N: Next level | P: Previous level", screenWidth - 300, screenHeight - 35)
+    love_print("R: Restart level | N: Next level | P: Previous level", 8, screenHeight - 20)
 
     self.colors:setColor("white", 0.7)
-    love_print(FOOTER_TEXT, 8, screenHeight - 20)
+    love_print(FOOTER_TEXT, screenWidth / 2 + 50, screenHeight - 20)
 
     -- Draw selection indicator
     if self.selected.x and self.selected.y then
