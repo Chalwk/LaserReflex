@@ -25,9 +25,7 @@ local line = love.graphics.line
 local Grid = {}
 Grid.__index = Grid
 
--- Predefined constants
 local DIRS = { 0, 1, 2, 3 }
-local DIST_COMPARE = function(a, b) return a.dist < b.dist end
 
 function Grid.new(soundManager, colors)
     local instance = setmetatable({}, Grid)
