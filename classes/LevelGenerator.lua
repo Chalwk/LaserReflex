@@ -89,8 +89,7 @@ local function determineTileType(c)
     elseif count == 3 then
         return "t_junction"
     elseif count == 2 then
-        return (up == down or left == right) and "straight" or "curve"
-    elseif count == 1 then
+        return (up == down or left == right) and "straight" or "curve"    elseif count == 1 then
         return "dead_end"
     else
         return "empty"

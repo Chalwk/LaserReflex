@@ -8,7 +8,6 @@ local WIN_TEXT = "Target reached! Press N for next level."
 local SIDE_TEXT = "Connected: %s"
 local FOOTER_TEXT = "LaserReflex - Copyright (c) 2025 Jericho Crosby (Chalwk)"
 
-local math_max = math.max
 local string_format = string.format
 
 local love_print = love.graphics.print
@@ -87,7 +86,7 @@ function Game:draw()
     love_print("Q/E: Rotate selected tile", 8, screenHeight - 35)
 
     self.colors:setColor("white", 0.7)
-    love_print("R: Restart level | N: Next level | P: Previous level", 8, screenHeight - 20)
+    love_print("R: Restart level | N: Next level", 8, screenHeight - 20)
 
     self.colors:setColor("white", 0.7)
     love_print(FOOTER_TEXT, screenWidth / 2 - 5, screenHeight - 20)
@@ -147,12 +146,6 @@ function Game:onKeyPressed(key)
         self:generateLevel(nextLevel)
         self.winningState = false
         self.sounds:play("level_change")
-    elseif key == 'p' then
-        -- Previous level
-        local prevLevel = math_max(1, self.currentLevel - 1)
-        self:generateLevel(prevLevel)
-        self.winningState = false
-        self.sounds:play("level_change")
     elseif key == 'escape' then
         love.event.quit()
     elseif key == 'q' or key == 'e' then
@@ -178,28 +171,6 @@ function Game:onKeyPressed(key)
         self.winningState = false
         self.sounds:play("level_change")
     end
-end
-
--- Helper function to check if coordinates are within grid bounds
-function Game:isWithinGrid(x, y)
-    return x >= 1 and x <= self.grid.gw and y >= 1 and y <= self.grid.gh
-end
-
--- Get the current level number
-function Game:getCurrentLevel()
-    return self.currentLevel
-end
-
--- Get the total number of levels (for progression display)
-function Game:getTotalLevels()
-    return 100 -- Procedural levels are essentially infinite
-end
-
--- Get progress percentage (for potential progress bar)
-function Game:getProgress()
-    local hitCount, totalTargets = self.grid:getTargetProgress()
-    if totalTargets > 0 then return hitCount / totalTargets end
-    return 0
 end
 
 return Game
