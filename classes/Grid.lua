@@ -82,12 +82,13 @@ function Grid.new(soundManager, colors)
             { up = true, right = true, down = true, left = true }
         },
         dead_end = {
-            { up = true,  right = false, down = false, left = false },
-            { up = false, right = true,  down = false, left = false },
-            { up = false, right = false, down = true,  left = false },
-            { up = false, right = false, down = false, left = true }
+            -- Dead-end: can only enter and exit through the open end (same direction)
+            { up = true,  right = false, down = false, left = false },    -- rotation 0: up only
+            { up = false, right = true,  down = false, left = false },    -- rotation 1: right only
+            { up = false, right = false, down = true,  left = false },    -- rotation 2: down only
+            { up = false, right = false, down = false, left = true }      -- rotation 3: left only
         },
-        laser = { -- Laser acts as a dead_end that emits light
+        laser = {                                                         -- Laser acts as a dead_end that emits light
             { up = true,  right = false, down = false, left = false },
             { up = false, right = true,  down = false, left = false },
             { up = false, right = false, down = true,  left = false },
@@ -118,6 +119,63 @@ local function getTileCenter(self, x, y)
         self.gridOffsetY + (y - 1) * self.tileSize + self.tileSize / 2
 end
 
+function Grid:drawTileConnections(x, y)
+    local tile = self:getTile(x, y)
+    if not tile then return end
+
+    local cx, cy = getTileCenter(self, x, y)
+    local size = self.tileSize * 0.3
+    local colors = self.colors
+
+    local connections = self.roadTileTypes[tile.type][tile.rotation + 1]
+
+    colors:setColor("red", 0.8)
+    if connections.up then
+        love.graphics.line(cx, cy - size, cx, cy - size / 2)
+        love.graphics.circle("fill", cx, cy - size, 3)
+    end
+    if connections.right then
+        love.graphics.line(cx + size, cy, cx + size / 2, cy)
+        love.graphics.circle("fill", cx + size, cy, 3)
+    end
+    if connections.down then
+        love.graphics.line(cx, cy + size, cx, cy + size / 2)
+        love.graphics.circle("fill", cx, cy + size, 3)
+    end
+    if connections.left then
+        love.graphics.line(cx - size, cy, cx - size / 2, cy)
+        love.graphics.circle("fill", cx - size, cy, 3)
+    end
+end
+
+local function canBeamTravelThroughTile(self, tile, incomingDir, outgoingDir)
+    if not tile or tile.type == "empty" then return false end
+
+    local connections = self.roadTileTypes[tile.type][tile.rotation + 1]
+
+    -- Check if we can enter from incoming direction
+    local canEnter = false
+    if incomingDir == 0 then canEnter = connections.up end
+    if incomingDir == 1 then canEnter = connections.right end
+    if incomingDir == 2 then canEnter = connections.down end
+    if incomingDir == 3 then canEnter = connections.left end
+
+    if not canEnter then return false end
+
+    -- Check if we can exit through outgoing direction (if specified)
+    if outgoingDir then
+        local canExit = false
+        if outgoingDir == 0 then canExit = connections.up end
+        if outgoingDir == 1 then canExit = connections.right end
+        if outgoingDir == 2 then canExit = connections.down end
+        if outgoingDir == 3 then canExit = connections.left end
+
+        return canExit
+    end
+
+    return true
+end
+
 local function explore(self, x, y, incomingDir, visited, path, targetColor)
     if not inBounds(self, x, y) then return false end
 
@@ -130,8 +188,14 @@ local function explore(self, x, y, incomingDir, visited, path, targetColor)
     if not tile or tile.type == "empty" then return false end
 
     if tile.type == "laser" then
-        table_insert(path, { x = x, y = y, incomingDir = incomingDir, color = tile.laserColor })
+        -- For laser tiles, validate the emission direction
         local laserDir = tile.rotation
+        if incomingDir ~= nil then
+            -- If we're coming from somewhere else into a laser, that's invalid
+            return false
+        end
+
+        table_insert(path, { x = x, y = y, incomingDir = incomingDir, color = tile.laserColor })
         local dirVecsX, dirVecsY = self.dirVecsX, self.dirVecsY
         local newX = x + dirVecsX[laserDir + 1]
         local newY = y + dirVecsY[laserDir + 1]
@@ -145,17 +209,10 @@ local function explore(self, x, y, incomingDir, visited, path, targetColor)
         return false
     end
 
-    -- For regular tiles, get connections for current rotation
-    local connections = self.roadTileTypes[tile.type][tile.rotation + 1]
-
-    -- Check if we can enter this tile from incoming direction
-    local canEnter = false
-    if incomingDir == 0 then canEnter = connections.up end
-    if incomingDir == 1 then canEnter = connections.right end
-    if incomingDir == 2 then canEnter = connections.down end
-    if incomingDir == 3 then canEnter = connections.left end
-
-    if not canEnter then return false end
+    -- For regular tiles, validate that beam can enter from incoming direction
+    if not canBeamTravelThroughTile(self, tile, incomingDir, nil) then
+        return false
+    end
 
     -- Add this position to path
     local pathSegment = { x = x, y = y, incomingDir = incomingDir }
@@ -176,13 +233,8 @@ local function explore(self, x, y, incomingDir, visited, path, targetColor)
     local dirVecsX, dirVecsY = self.dirVecsX, self.dirVecsY
     for _, dir in ipairs(DIRS) do
         if dir ~= incomingDir then
-            local canExit = false
-            if dir == 0 then canExit = connections.up end
-            if dir == 1 then canExit = connections.right end
-            if dir == 2 then canExit = connections.down end
-            if dir == 3 then canExit = connections.left end
-
-            if canExit then
+            -- Validate that beam can exit through this direction
+            if canBeamTravelThroughTile(self, tile, incomingDir, dir) then
                 local newX = x + dirVecsX[dir + 1]
                 local newY = y + dirVecsY[dir + 1]
                 local nextIncomingDir = (dir + 2) % 4
@@ -276,37 +328,37 @@ local function drawLaneMarkings(connections, cx, cy, half, roadWidth, lineWidth)
 end
 
 local function drawLaserEmitter(self, rotation, cx, cy, size, colorName)
-    local colors = self.colors
-    local outerSize = size
-    local innerSize = size * 0.6
-    local tipSize   = size * 0.3
+    local colors      = self.colors
+    local outerSize   = size
+    local innerSize   = size * 0.6
+    local tipSize     = size * 0.3
 
-    local rot = rotation % 4
+    local rot         = rotation % 4
 
     -- Cache color strings once
     local casingColor = "laser_" .. colorName .. "_casing"
     local glowColor   = "laser_" .. colorName .. "_glow"
 
     -- Predefined vertex sets for each rotation
-    local outerVerts = {
-        [0] = {cx, cy - outerSize, cx - outerSize / 2, cy + outerSize / 3, cx + outerSize / 2, cy + outerSize / 3},
-        [1] = {cx + outerSize, cy, cx - outerSize / 3, cy - outerSize / 2, cx - outerSize / 3, cy + outerSize / 2},
-        [2] = {cx, cy + outerSize, cx - outerSize / 2, cy - outerSize / 3, cx + outerSize / 2, cy - outerSize / 3},
-        [3] = {cx - outerSize, cy, cx + outerSize / 3, cy - outerSize / 2, cx + outerSize / 3, cy + outerSize / 2}
+    local outerVerts  = {
+        [0] = { cx, cy - outerSize, cx - outerSize / 2, cy + outerSize / 3, cx + outerSize / 2, cy + outerSize / 3 },
+        [1] = { cx + outerSize, cy, cx - outerSize / 3, cy - outerSize / 2, cx - outerSize / 3, cy + outerSize / 2 },
+        [2] = { cx, cy + outerSize, cx - outerSize / 2, cy - outerSize / 3, cx + outerSize / 2, cy - outerSize / 3 },
+        [3] = { cx - outerSize, cy, cx + outerSize / 3, cy - outerSize / 2, cx + outerSize / 3, cy + outerSize / 2 }
     }
 
-    local innerVerts = {
-        [0] = {cx, cy - innerSize, cx - innerSize / 2, cy + innerSize / 4, cx + innerSize / 2, cy + innerSize / 4},
-        [1] = {cx + innerSize, cy, cx - innerSize / 4, cy - innerSize / 2, cx - innerSize / 4, cy + innerSize / 2},
-        [2] = {cx, cy + innerSize, cx - innerSize / 2, cy - innerSize / 4, cx + innerSize / 2, cy - innerSize / 4},
-        [3] = {cx - innerSize, cy, cx + innerSize / 4, cy - innerSize / 2, cx + innerSize / 4, cy + innerSize / 2}
+    local innerVerts  = {
+        [0] = { cx, cy - innerSize, cx - innerSize / 2, cy + innerSize / 4, cx + innerSize / 2, cy + innerSize / 4 },
+        [1] = { cx + innerSize, cy, cx - innerSize / 4, cy - innerSize / 2, cx - innerSize / 4, cy + innerSize / 2 },
+        [2] = { cx, cy + innerSize, cx - innerSize / 2, cy - innerSize / 4, cx + innerSize / 2, cy - innerSize / 4 },
+        [3] = { cx - innerSize, cy, cx + innerSize / 4, cy - innerSize / 2, cx + innerSize / 4, cy + innerSize / 2 }
     }
 
-    local tips = {
-        [0] = {cx - tipSize / 4, cy - outerSize, tipSize / 2, tipSize},
-        [1] = {cx + outerSize - tipSize, cy - tipSize / 4, tipSize, tipSize / 2},
-        [2] = {cx - tipSize / 4, cy + outerSize - tipSize, tipSize / 2, tipSize},
-        [3] = {cx - outerSize, cy - tipSize / 4, tipSize, tipSize / 2}
+    local tips        = {
+        [0] = { cx - tipSize / 4, cy - outerSize, tipSize / 2, tipSize },
+        [1] = { cx + outerSize - tipSize, cy - tipSize / 4, tipSize, tipSize / 2 },
+        [2] = { cx - tipSize / 4, cy + outerSize - tipSize, tipSize / 2, tipSize },
+        [3] = { cx - outerSize, cy - tipSize / 4, tipSize, tipSize / 2 }
     }
 
     -- Outer casing
@@ -323,10 +375,10 @@ local function drawLaserEmitter(self, rotation, cx, cy, size, colorName)
 end
 
 local function drawTarget(self, cx, cy, size, colorName, hit, t)
-    local colors = self.colors
-    local baseSize = size * 0.5
-    local glowSize = size * 0.4
-    local lineLength = size * 0.2
+    local colors      = self.colors
+    local baseSize    = size * 0.5
+    local glowSize    = size * 0.4
+    local lineLength  = size * 0.2
 
     -- Cache color keys
     local casingColor = "target_" .. colorName .. "_casing"
@@ -424,11 +476,11 @@ local function drawGradualBeams(self, t)
         local count = #path
         if count == 0 then goto continue end
 
-        local progress = math_min(beamProg[beamColor] or 0, count)
-        local intProg  = math_floor(progress)
-        local partial  = progress - intProg
+        local progress    = math_min(beamProg[beamColor] or 0, count)
+        local intProg     = math_floor(progress)
+        local partial     = progress - intProg
 
-        local colorKey = "beam_" .. beamColor
+        local colorKey    = "beam_" .. beamColor
         local faintAlpha  = 0.4 * pulse
         local strongAlpha = 0.9 * pulse
 

@@ -28,22 +28,22 @@ function Colors.new()
         -- Add these color definitions to your Colors.lua file:
 
         -- Laser casing colors (darker versions)
-        laser_red_casing = {0.7, 0.1, 0.1},
-        laser_blue_casing = {0.1, 0.1, 0.7},
-        laser_green_casing = {0.1, 0.5, 0.1},
-        laser_yellow_casing = {0.6, 0.5, 0.1},
+        laser_red_casing = { 0.7, 0.1, 0.1 },
+        laser_blue_casing = { 0.1, 0.1, 0.7 },
+        laser_green_casing = { 0.1, 0.5, 0.1 },
+        laser_yellow_casing = { 0.6, 0.5, 0.1 },
 
         -- Target casing colors (should match laser casing colors)
-        target_red_casing = {0.7, 0.1, 0.1},
-        target_blue_casing = {0.1, 0.1, 0.7},
-        target_green_casing = {0.1, 0.5, 0.1},
-        target_yellow_casing = {0.6, 0.5, 0.1},
+        target_red_casing = { 0.7, 0.1, 0.1 },
+        target_blue_casing = { 0.1, 0.1, 0.7 },
+        target_green_casing = { 0.1, 0.5, 0.1 },
+        target_yellow_casing = { 0.6, 0.5, 0.1 },
 
         -- Target core colors (should match laser glow colors)
-        target_red_core = {1.0, 0.3, 0.3},
-        target_blue_core = {0.3, 0.3, 1.0},
-        target_green_core = {0.3, 0.8, 0.3},
-        target_yellow_core = {1.0, 0.9, 0.3},
+        target_red_core = { 1.0, 0.3, 0.3 },
+        target_blue_core = { 0.3, 0.3, 1.0 },
+        target_green_core = { 0.3, 0.8, 0.3 },
+        target_yellow_core = { 1.0, 0.9, 0.3 },
 
         -- Laser and target colors
         laser_red = { 1.0, 0.2, 0.2 },

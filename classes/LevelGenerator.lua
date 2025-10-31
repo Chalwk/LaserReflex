@@ -7,9 +7,9 @@ local table_sort = table.sort
 local table_insert = table.insert
 local table_remove = table.remove
 
+local math_max = math.max
 local math_abs = math.abs
 local math_min = math.min
-local math_max = math.max
 local math_floor = math.floor
 
 local love_random = love.math.random
@@ -49,6 +49,14 @@ function LevelGenerator.new()
     return instance
 end
 
+local function shuffle(t)
+    for i = #t, 2, -1 do
+        local j = love_random(1, i)
+        t[i], t[j] = t[j], t[i]
+    end
+    return t
+end
+
 local function placeLasersAndTargets(levelData, gridSize)
     levelData.lasers = {}
     levelData.targets = {}
@@ -69,16 +77,11 @@ local function placeLasersAndTargets(levelData, gridSize)
         local sidesCopy = {}
         for _, side in ipairs(availableSides) do table_insert(sidesCopy, side) end
 
-        if #sidesCopy < 2 then
-            -- Not enough sides left, reuse sides but ensure different positions
-            sidesCopy = { 1, 2, 3, 4 }
-        end
+        -- Not enough sides left, reuse sides but ensure different positions
+        if #sidesCopy < 2 then sidesCopy = { 1, 2, 3, 4 } end
 
         -- Shuffle sides to ensure randomness
-        for i = #sidesCopy, 2, -1 do
-            local j = love_random(1, i)
-            sidesCopy[i], sidesCopy[j] = sidesCopy[j], sidesCopy[i]
-        end
+        sidesCopy = shuffle(sidesCopy)
 
         local side1, side2 = sidesCopy[1], sidesCopy[2]
 
@@ -192,13 +195,13 @@ local function determineTileType(c)
     end
 end
 
+-- Heuristic function (Manhattan distance)
+local function heuristic(x1, y1, x2, y2)
+    return math_abs(x1 - x2) + math_abs(y1 - y2)
+end
+
 -- Improved A* pathfinding algorithm
 local function aStarPathfinding(startX, startY, targetX, targetY, gridSize, complexity)
-    -- Heuristic function (Manhattan distance)
-    local function heuristic(x1, y1, x2, y2)
-        return math_abs(x1 - x2) + math_abs(y1 - y2)
-    end
-
     -- Priority queue implementation
     local openSet = {}
     local closedSet = {}
@@ -297,71 +300,6 @@ local function aStarPathfinding(startX, startY, targetX, targetY, gridSize, comp
     return nil
 end
 
-local function generatePath(levelData)
-    -- Cache levelData properties
-    local gridSize = levelData.gridSize
-    local complexity = levelData.complexity
-    local targetX, targetY = levelData.target.x, levelData.target.y
-    local laserX, laserY = levelData.laser.x, levelData.laser.y
-    local tiles = levelData.tiles
-
-    -- Use A* to find the optimal path
-    local path = aStarPathfinding(laserX, laserY, targetX, targetY, gridSize, complexity)
-
-    if not path then
-        -- Fallback to original method if A* fails
-        path = { { x = laserX, y = laserY } }
-        local currentX, currentY = laserX, laserY
-        local visited = {}
-        visited[currentY * gridSize + currentX] = true
-
-        while currentX ~= targetX or currentY ~= targetY do
-            local moves = {}
-
-            for _, dir in ipairs(DIRECTIONS) do
-                local newX, newY = currentX + dir.dx, currentY + dir.dy
-                if newX >= 1 and newX <= gridSize and newY >= 1 and newY <= gridSize then
-                    local key = newY * gridSize + newX
-                    if not visited[key] then
-                        local distToTarget = math_abs(newX - targetX) + math_abs(newY - targetY)
-                        table_insert(moves, { x = newX, y = newY, dist = distToTarget })
-                    end
-                end
-            end
-
-            if #moves == 0 then
-                if #path > 1 then
-                    table_remove(path)
-                    currentX, currentY = path[#path].x, path[#path].y
-                else
-                    break
-                end
-            else
-                table_sort(moves, DIST_COMPARE)
-                local chosenIndex = 1
-                if #moves > 1 and love_random() < complexity then
-                    chosenIndex = love_random(1, math_min(3, #moves))
-                end
-
-                currentX, currentY = moves[chosenIndex].x, moves[chosenIndex].y
-                table_insert(path, { x = currentX, y = currentY })
-                visited[currentY * gridSize + currentX] = true
-            end
-        end
-    end
-
-    -- Place path tiles
-    for i, pos in ipairs(path) do
-        local connections = getTileConnections(path, i)
-        if not tiles[pos.y] then tiles[pos.y] = {} end
-        tiles[pos.y][pos.x] = {
-            type = determineTileType(connections),
-            rotation = 0, -- Will be randomized later
-            connections = connections
-        }
-    end
-end
-
 local function fillRemainingTiles(levelData)
     local gridSize = levelData.gridSize
     local tiles = levelData.tiles
@@ -369,9 +307,7 @@ local function fillRemainingTiles(levelData)
 
     for y = 1, gridSize do
         -- Ensure the row exists
-        if not tiles[y] then
-            tiles[y] = {}
-        end
+        if not tiles[y] then tiles[y] = {} end
         for x = 1, gridSize do
             -- Check if tile exists and is empty, or if tile doesn't exist
             if not tiles[y][x] or tiles[y][x].type == "empty" then
@@ -406,6 +342,73 @@ local function randomizeRotations(levelData)
     end
 end
 
+local function generateNonConflictingPaths(levelData)
+    local gridSize = levelData.gridSize
+    local tiles = levelData.tiles or {}
+
+    -- Initialize tiles if not exists
+    for y = 1, gridSize do
+        if not tiles[y] then tiles[y] = {} end
+        for x = 1, gridSize do
+            if not tiles[y][x] then
+                tiles[y][x] = { type = "empty", rotation = 0 }
+            end
+        end
+    end
+
+    -- Generate paths for each laser-target pair
+    for i, laser in ipairs(levelData.lasers) do
+        local target = levelData.targets[i]
+        if target then
+            local path = aStarPathfinding(laser.x, laser.y, target.x, target.y, gridSize, levelData.complexity)
+
+            if path then
+                -- Place path tiles, avoiding conflicts with existing paths
+                for j, pos in ipairs(path) do
+                    if not tiles[pos.y] then tiles[pos.y] = {} end
+
+                    -- Only place tile if it's not already part of another path (except start/end)
+                    if j == 1 or j == #path or not tiles[pos.y][pos.x] or tiles[pos.y][pos.x].type == "empty" then
+                        local connections = getTileConnections(path, j)
+                        tiles[pos.y][pos.x] = {
+                            type = determineTileType(connections),
+                            rotation = 0,
+                            connections = connections
+                        }
+                    end
+                end
+            end
+        end
+    end
+
+    levelData.tiles = tiles
+end
+
+local function validateLevelSolvability(levelData)
+    local totalTargets = #levelData.targets
+    local reachableTargets = 0
+
+    -- Simple check: ensure each target has at least one possible path from its corresponding laser
+    for i, laser in ipairs(levelData.lasers) do
+        local target = levelData.targets[i]
+        if target then
+            local path = aStarPathfinding(laser.x, laser.y, target.x, target.y, levelData.gridSize, 0.1)
+            if path then
+                reachableTargets = reachableTargets + 1
+            else
+                print("No path found for " .. laser.color .. " laser to target")
+            end
+        end
+    end
+
+    local valid = reachableTargets == totalTargets
+    if not valid then
+        print("Level validation failed: " .. reachableTargets .. "/" .. totalTargets .. " targets reachable")
+    end
+
+    return valid
+end
+
 function LevelGenerator:generateLevel(levelIndex)
     self.levelNumber = levelIndex or self.levelNumber + 1
 
@@ -423,20 +426,24 @@ function LevelGenerator:generateLevel(levelIndex)
         complexity = math_min(0.3 + (levelIndex - 1) * 0.1, 0.8)
     }
 
-    -- Place multiple lasers and targets
+    -- Place multiple lasers and targets (with the fixed function)
     placeLasersAndTargets(levelData, gridSize)
 
-    -- Generate paths for each laser-target pair
-    for i, laser in ipairs(levelData.lasers) do
-        local target = levelData.targets[i]
-        if target then
-            -- Temporarily set single laser/target for path generation
-            levelData.laser = laser
-            levelData.target = target
-            generatePath(levelData)
-            levelData.laser = nil
-            levelData.target = nil
-        end
+    -- Generate non-conflicting paths for all laser-target pairs
+    generateNonConflictingPaths(levelData)
+
+    -- Validate level solvability and regenerate if needed
+    local maxAttempts = 10
+    local attempts = 0
+    while attempts < maxAttempts and not validateLevelSolvability(levelData) do
+        attempts = attempts + 1
+        -- Regenerate paths
+        levelData.tiles = {} -- Clear existing tiles
+        generateNonConflictingPaths(levelData)
+    end
+
+    if attempts >= maxAttempts then
+        print("Warning: Level " .. levelIndex .. " may not be fully solvable after " .. maxAttempts .. " attempts")
     end
 
     -- Fill remaining tiles with random road pieces

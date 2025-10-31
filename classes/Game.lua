@@ -146,7 +146,7 @@ function Game:update(dt)
     local hitCount, totalTargets = self.grid:getTargetProgress()
     if totalTargets > 0 and hitCount == totalTargets and not self.winningState then
         self.winningState = true
-        self.timerRunning = false  -- Stop timer when level is completed
+        self.timerRunning = false -- Stop timer when level is completed
         self.sounds:play("win")
 
         -- Check for best time
