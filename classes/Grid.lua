@@ -48,8 +48,8 @@ function Grid.new(soundManager, colors)
 
     -- Directions: 0=up, 1=right, 2=down, 3=left
     -- Optimized: separate arrays for x and y
-    instance.dirVecsX = {0, 1, 0, -1}
-    instance.dirVecsY = {-1, 0, 1, 0}
+    instance.dirVecsX = { 0, 1, 0, -1 }
+    instance.dirVecsY = { -1, 0, 1, 0 }
 
     -- Road tile connection patterns (for each rotation 0-3)
     instance.roadTileTypes = {
@@ -104,6 +104,17 @@ function Grid.new(soundManager, colors)
     instance.targetX, instance.targetY = nil, nil
 
     return instance
+end
+
+function Grid:debugTileConnections(x, y)
+    local tile = self:getTile(x, y)
+    if not tile then return end
+
+    print(string_format("Tile at (%d,%d): type=%s, rotation=%d", x, y, tile.type, tile.rotation))
+    local connections = self.roadTileTypes[tile.type][tile.rotation + 1]
+    print(string_format("  Connections: up=%s, right=%s, down=%s, left=%s",
+        tostring(connections.up), tostring(connections.right),
+        tostring(connections.down), tostring(connections.left)))
 end
 
 local function inBounds(self, x, y)
@@ -217,6 +228,16 @@ local function explore(self, x, y, incomingDir, visited, path)
 end
 
 local function computeBeamPath(self)
+
+    -- Debug: print all tile connections
+    print("=== GRID CONNECTIONS ===")
+    for y = 1, self.gh do
+        for x = 1, self.gw do
+            self:debugTileConnections(x, y)
+        end
+    end
+    print("=== END GRID CONNECTIONS ===")
+
     self.activeBeamPath = {}
     self.targetsHit = {}
     self.beamProgress = 0
@@ -230,18 +251,18 @@ local function computeBeamPath(self)
     local startX, startY = laser.x, laser.y
     local targetX, targetY = self.targetX, self.targetY
 
-    print(string_format("Laser at (%d,%d) facing %d", startX, startY, laser.d))
-    print(string_format("Target at (%d,%d)", targetX, targetY))
+    --print(string_format("Laser at (%d,%d) facing %d", startX, startY, laser.d))
+    --print(string_format("Target at (%d,%d)", targetX, targetY))
 
     -- Start exploration from the laser tile with no incoming direction
     -- The laser will handle its own direction logic
     local found = explore(self, startX, startY, nil, visited, path)
 
     if not found then
-        print("No path found to target")
+        --print("No path found to target")
         self.activeBeamPath = {}
     else
-        print(string_format("Beam path computed with %d segments", #self.activeBeamPath))
+        --print(string_format("Beam path computed with %d segments", #self.activeBeamPath))
 
         -- Debug: print path
         for i, seg in ipairs(self.activeBeamPath) do
