@@ -8,13 +8,9 @@ local math_sin = math.sin
 local math_min = math.min
 local math_max = math.max
 
-local next = next
 local ipairs = ipairs
-local tostring = tostring
 local table_insert = table.insert
 local table_remove = table.remove
-
-local string_format = string.format
 
 local setLineWidth = love.graphics.setLineWidth
 local rectangle = love.graphics.rectangle
@@ -44,8 +40,18 @@ function Grid.new(soundManager, colors)
 
     instance.previouslyHit = {}
 
+    -- Multiple beam tracking
+    instance.activeBeamPaths = {}
+    instance.beamProgress = {}  -- Progress for each beam
+    instance.previouslyHit = {} -- Track hit state for each target
+
+    -- For gradual beam propagation
+    instance.beamProgress = 0
+    instance.beamSpeed = 5.5 -- tiles per second
+    instance.activeBeamPath = {}
+    instance.targetX, instance.targetY = nil, nil
+
     -- Directions: 0=up, 1=right, 2=down, 3=left
-    -- Optimized: separate arrays for x and y
     instance.dirVecsX = { 0, 1, 0, -1 }
     instance.dirVecsY = { -1, 0, 1, 0 }
 
@@ -95,12 +101,6 @@ function Grid.new(soundManager, colors)
         }
     }
 
-    -- For gradual beam propagation
-    instance.beamProgress = 0
-    instance.beamSpeed = 5.5 -- tiles per second
-    instance.activeBeamPath = {}
-    instance.targetX, instance.targetY = nil, nil
-
     return instance
 end
 
@@ -113,16 +113,14 @@ local function tileAt(self, x, y)
     return self.grid[y][x]
 end
 
--- Helper function to get tile center coordinates
 local function getTileCenter(self, x, y)
     return self.gridOffsetX + (x - 1) * self.tileSize + self.tileSize / 2,
         self.gridOffsetY + (y - 1) * self.tileSize + self.tileSize / 2
 end
 
-local function explore(self, x, y, incomingDir, visited, path)
+local function explore(self, x, y, incomingDir, visited, path, targetColor)
     if not inBounds(self, x, y) then return false end
 
-    -- Use a sentinel for "no incoming direction" so nil does not collide with 0
     local inDirKey = (incomingDir == nil) and 4 or incomingDir
     local key = y * (self.gw * 5) + x * 5 + inDirKey
     if visited[key] then return false end
@@ -131,21 +129,18 @@ local function explore(self, x, y, incomingDir, visited, path)
     local tile = tileAt(self, x, y)
     if not tile or tile.type == "empty" then return false end
 
-    -- SPECIAL CASE: Laser - add laser to path, then continue in its emission direction
     if tile.type == "laser" then
-        -- Insert laser tile into path (so activeBeamPath[1] is the laser)
-        table_insert(path, { x = x, y = y, incomingDir = incomingDir })
+        table_insert(path, { x = x, y = y, incomingDir = incomingDir, color = tile.laserColor })
         local laserDir = tile.rotation
         local dirVecsX, dirVecsY = self.dirVecsX, self.dirVecsY
         local newX = x + dirVecsX[laserDir + 1]
         local newY = y + dirVecsY[laserDir + 1]
         local nextIncomingDir = (laserDir + 2) % 4
 
-        if explore(self, newX, newY, nextIncomingDir, visited, path) then
+        if explore(self, newX, newY, nextIncomingDir, visited, path, targetColor) then
             return true
         end
 
-        -- backtrack if not found via laser
         table_remove(path)
         return false
     end
@@ -154,37 +149,33 @@ local function explore(self, x, y, incomingDir, visited, path)
     local connections = self.roadTileTypes[tile.type][tile.rotation + 1]
 
     -- Check if we can enter this tile from incoming direction
-    -- Correct mapping: if we entered from the top (incomingDir == 0),
-    -- the tile must have an 'up' connection to accept the beam.
     local canEnter = false
-    if incomingDir == 0 then canEnter = connections.up end    -- came from above -> tile must have up
-    if incomingDir == 1 then canEnter = connections.right end -- came from right -> tile must have right
-    if incomingDir == 2 then canEnter = connections.down end  -- came from below -> tile must have down
-    if incomingDir == 3 then canEnter = connections.left end  -- came from left -> tile must have left
+    if incomingDir == 0 then canEnter = connections.up end
+    if incomingDir == 1 then canEnter = connections.right end
+    if incomingDir == 2 then canEnter = connections.down end
+    if incomingDir == 3 then canEnter = connections.left end
 
     if not canEnter then return false end
 
     -- Add this position to path
     local pathSegment = { x = x, y = y, incomingDir = incomingDir }
+    if tile.type == "target" then pathSegment.color = tile.targetColor end
     table_insert(path, pathSegment)
 
-    -- Check if we reached the target
-    local targetX, targetY = self.targetX, self.targetY
-    if x == targetX and y == targetY then
-        -- Found the target: copy path to activeBeamPath and mark target hit
-        self.activeBeamPath = {}
-        for i, seg in ipairs(path) do
-            table_insert(self.activeBeamPath, seg)
+    -- Check if we reached a target of the correct color
+    if tile.type == "target" and tile.targetColor == targetColor then
+        self.activeBeamPaths[targetColor] = {}
+        for _, seg in ipairs(path) do
+            table_insert(self.activeBeamPaths[targetColor], seg)
         end
         self.targetsHit[x .. "," .. y] = true
-        print(string_format("Found path to target! Path length: %d", #self.activeBeamPath))
         return true
     end
 
     -- Explore connected directions (excluding the incoming direction)
     local dirVecsX, dirVecsY = self.dirVecsX, self.dirVecsY
     for _, dir in ipairs(DIRS) do
-        if dir ~= incomingDir then -- Don't go back the way we came
+        if dir ~= incomingDir then
             local canExit = false
             if dir == 0 then canExit = connections.up end
             if dir == 1 then canExit = connections.right end
@@ -194,11 +185,9 @@ local function explore(self, x, y, incomingDir, visited, path)
             if canExit then
                 local newX = x + dirVecsX[dir + 1]
                 local newY = y + dirVecsY[dir + 1]
-
-                -- incoming direction for the next tile is opposite of dir
                 local nextIncomingDir = (dir + 2) % 4
 
-                if explore(self, newX, newY, nextIncomingDir, visited, path) then
+                if explore(self, newX, newY, nextIncomingDir, visited, path, targetColor) then
                     return true
                 end
             end
@@ -210,22 +199,24 @@ local function explore(self, x, y, incomingDir, visited, path)
     return false
 end
 
-
-local function computeBeamPath(self)
-    self.activeBeamPath = {}
+local function computeBeamPaths(self)
+    self.activeBeamPaths = {}
     self.targetsHit = {}
-    self.beamProgress = 0
+    self.beamProgress = {}
+    self.previouslyHit = {}
 
-    if #self.lasers == 0 then return end
+    for i, laser in ipairs(self.lasers) do
+        local visited = {}
+        local path = {}
+        local found = explore(self, laser.x, laser.y, nil, visited, path, laser.color)
 
-    local laser = self.lasers[1]
-    local visited = {}
-    local path = {}
-
-    local startX, startY = laser.x, laser.y
-    local found = explore(self, startX, startY, nil, visited, path)
-
-    if not found then self.activeBeamPath = {} end
+        if found then
+            self.beamProgress[laser.color] = 0
+            self.previouslyHit[laser.color] = false
+        else
+            self.activeBeamPaths[laser.color] = {}
+        end
+    end
 end
 
 local function drawGrid(self, sx, sy)
@@ -257,12 +248,15 @@ local function drawRoadTile(self, tileType, rotation, cx, cy, t, gx, gy)
     local tileSize = self.tileSize
     local colors = self.colors
     local size = tileSize * 0.3
+    local tile = tileAt(self, gx, gy)
 
     -- Base circle - different colors for special tiles
     if tileType == "laser" then
-        colors:setColor("golden_wheat", 0.7)
+        local laserColor = tile.laserColor or "red"
+        colors:setColor("laser_" .. laserColor, 0.7)
     elseif tileType == "target" then
-        colors:setColor("crimson_red", 0.7)
+        local targetColor = tile.targetColor or "red"
+        colors:setColor("target_" .. targetColor, 0.7)
     else
         colors:setColor("road_base", 0.9)
     end
@@ -270,9 +264,11 @@ local function drawRoadTile(self, tileType, rotation, cx, cy, t, gx, gy)
 
     -- Outline - different for special tiles
     if tileType == "laser" then
-        colors:setColor("golden_yellow", 1)
+        local laserColor = tile.laserColor or "red"
+        colors:setColor("laser_" .. laserColor .. "_glow", 1)
     elseif tileType == "target" then
-        colors:setColor("dark_red", 1)
+        local targetColor = tile.targetColor or "red"
+        colors:setColor("target_" .. targetColor .. "_glow", 1)
     else
         colors:setColor("road_outline", 1)
     end
@@ -284,9 +280,11 @@ local function drawRoadTile(self, tileType, rotation, cx, cy, t, gx, gy)
 
     -- Connection lines - different colors for special tiles
     if tileType == "laser" then
-        colors:setColor("golden_yellow", 0.8)
+        local laserColor = tile.laserColor or "red"
+        colors:setColor("laser_" .. laserColor .. "_glow", 0.8)
     elseif tileType == "target" then
-        colors:setColor("crimson_red", 0.8)
+        local targetColor = tile.targetColor or "red"
+        colors:setColor("target_" .. targetColor .. "_glow", 0.8)
     else
         colors:setColor("road_connection", 0.7)
     end
@@ -315,7 +313,8 @@ local function drawRoadTile(self, tileType, rotation, cx, cy, t, gx, gy)
         end
 
         -- Pulsing core
-        colors:setColor("pastel_yellow", pulse)
+        local laserColor = tile.laserColor or "red"
+        colors:setColor("laser_" .. laserColor .. "_glow", pulse)
         circle("fill", cx, cy, size * 0.15)
     elseif tileType == "target" then
         -- Target symbol (bullseye)
@@ -326,12 +325,13 @@ local function drawRoadTile(self, tileType, rotation, cx, cy, t, gx, gy)
 
         -- Center dot with hit effect
         local hit = self.targetsHit[gx .. "," .. gy]
+        local targetColor = tile.targetColor or "red"
         if hit then
             local glow = 0.8 + 0.2 * math_sin(t * 8)
-            colors:setColor("neon_green", glow)
+            colors:setColor("target_" .. targetColor .. "_glow", glow)
             circle("fill", cx, cy, size * 0.2)
         else
-            colors:setColor("crimson_red", 1)
+            colors:setColor("target_" .. targetColor, 1)
             circle("fill", cx, cy, size * 0.2)
         end
     else
@@ -343,69 +343,73 @@ local function drawRoadTile(self, tileType, rotation, cx, cy, t, gx, gy)
     setLineWidth(1)
 end
 
-local function drawGradualBeam(self, t)
-    local activeBeamPath = self.activeBeamPath
-    if #activeBeamPath == 0 then return end
-
+local function drawGradualBeams(self, t)
     local colors = self.colors
     local tileSize = self.tileSize
-    local pulse = 0.7 + 0.3 * math_sin(t * 8)
-    local progress = math_min(self.beamProgress, #activeBeamPath)
 
-    -- Draw the beam segments up to the current progress
-    for i = 2, math_floor(progress) do
-        local segment = activeBeamPath[i]
-        local sx, sy = getTileCenter(self, segment.x, segment.y)
+    for beamColor, activeBeamPath in pairs(self.activeBeamPaths) do
+        if #activeBeamPath == 0 then goto continue end
 
-        -- Draw beam segment (glowing dot at each tile)
-        colors:setColor("lime_green", 0.9 * pulse)
-        setLineWidth(8)
-        circle("fill", sx, sy, tileSize * 0.12)
+        local pulse = 0.7 + 0.3 * math_sin(t * 8)
+        local progress = math_min(self.beamProgress[beamColor] or 0, #activeBeamPath)
 
-        -- Draw connection to previous segment (if exists)
-        local prev = activeBeamPath[i - 1]
-        local psx, psy = getTileCenter(self, prev.x, prev.y)
+        -- Draw the beam segments up to the current progress
+        for i = 2, math_floor(progress) do
+            local segment = activeBeamPath[i]
+            local sx, sy = getTileCenter(self, segment.x, segment.y)
 
-        -- Connection line with glow
-        colors:setColor("lime_green", 0.4 * pulse)
-        setLineWidth(3)
-        line(psx, psy, sx, sy)
+            -- Draw beam segment (glowing dot at each tile)
+            colors:setColor("beam_" .. beamColor, 0.9 * pulse)
+            setLineWidth(8)
+            circle("fill", sx, sy, tileSize * 0.12)
 
-        colors:setColor("lime_green", 0.9 * pulse)
-        setLineWidth(3)
-        line(psx, psy, sx, sy)
-    end
+            -- Draw connection to previous segment (if exists)
+            local prev = activeBeamPath[i - 1]
+            local psx, psy = getTileCenter(self, prev.x, prev.y)
 
-    -- Draw partial progress to next segment
-    local partial = progress - math_floor(progress)
-    if partial > 0 and math_floor(progress) < #activeBeamPath then
-        local currentIndex = math_floor(progress)
-        local nextIndex = currentIndex + 1
+            -- Connection line with glow
+            colors:setColor("beam_" .. beamColor, 0.4 * pulse)
+            setLineWidth(3)
+            line(psx, psy, sx, sy)
 
-        if currentIndex >= 1 and nextIndex <= #activeBeamPath then
-            local currentSeg = activeBeamPath[currentIndex]
-            local nextSeg = activeBeamPath[nextIndex]
-
-            local csx, csy = getTileCenter(self, currentSeg.x, currentSeg.y)
-            local nsx, nsy = getTileCenter(self, nextSeg.x, nextSeg.y)
-
-            -- Interpolated position
-            local isx = csx + (nsx - csx) * partial
-            local isy = csy + (nsy - csy) * partial
-
-            -- Draw partial connection
-            colors:setColor("lime_green", 0.4 * pulse)
-            setLineWidth(12)
-            line(csx, csy, isx, isy)
-
-            colors:setColor("lime_green", 0.9 * pulse)
-            setLineWidth(6)
-            line(csx, csy, isx, isy)
-
-            -- Draw partial endpoint
-            colors:setColor("lime_green", 0.9 * pulse)
-            circle("fill", isx, isy, tileSize * 0.12)
+            colors:setColor("beam_" .. beamColor, 0.9 * pulse)
+            setLineWidth(3)
+            line(psx, psy, sx, sy)
         end
+
+        -- Draw partial progress to next segment
+        local partial = progress - math_floor(progress)
+        if partial > 0 and math_floor(progress) < #activeBeamPath then
+            local currentIndex = math_floor(progress)
+            local nextIndex = currentIndex + 1
+
+            if currentIndex >= 1 and nextIndex <= #activeBeamPath then
+                local currentSeg = activeBeamPath[currentIndex]
+                local nextSeg = activeBeamPath[nextIndex]
+
+                local csx, csy = getTileCenter(self, currentSeg.x, currentSeg.y)
+                local nsx, nsy = getTileCenter(self, nextSeg.x, nextSeg.y)
+
+                -- Interpolated position
+                local isx = csx + (nsx - csx) * partial
+                local isy = csy + (nsy - csy) * partial
+
+                -- Draw partial connection
+                colors:setColor("beam_" .. beamColor, 0.4 * pulse)
+                setLineWidth(12)
+                line(csx, csy, isx, isy)
+
+                colors:setColor("beam_" .. beamColor, 0.9 * pulse)
+                setLineWidth(6)
+                line(csx, csy, isx, isy)
+
+                -- Draw partial endpoint
+                colors:setColor("beam_" .. beamColor, 0.9 * pulse)
+                circle("fill", isx, isy, tileSize * 0.12)
+            end
+        end
+
+        ::continue::
     end
 
     setLineWidth(1)
@@ -417,9 +421,9 @@ function Grid:loadLevel(levelData)
     self.gw, self.gh = levelData.gridSize, levelData.gridSize
     self.grid, self.lasers, self.beams, self.targetsHit = {}, {}, {}, {}
     self.previouslyHit = {}
-    self.beamProgress = 0
-    self.activeBeamPath = {}
-    self.targetX, self.targetY = nil, nil
+    self.beamProgress = {}
+    self.activeBeamPaths = {}
+    self.targets = levelData.targets or {}
 
     -- Initialize grid with road tiles
     for y = 1, self.gh do
@@ -433,25 +437,35 @@ function Grid:loadLevel(levelData)
         end
     end
 
-    -- Place laser and target as proper road tiles
-    if levelData.laser then
-        local lx, ly, ld = levelData.laser.x, levelData.laser.y, levelData.laser.dir
-        self.grid[ly][lx] = { type = "laser", rotation = ld }
-        self.lasers = { { x = lx, y = ly, d = ld } }
+    -- Place multiple lasers as proper road tiles
+    if levelData.lasers then
+        for _, laser in ipairs(levelData.lasers) do
+            local lx, ly, ld, color = laser.x, laser.y, laser.dir, laser.color
+            self.grid[ly][lx] = {
+                type = "laser",
+                rotation = ld,
+                laserColor = color
+            }
+            table_insert(self.lasers, { x = lx, y = ly, d = ld, color = color })
+        end
     end
 
-    if levelData.target then
-        local tx, ty = levelData.target.x, levelData.target.y
-        -- Target rotation should face toward the grid (opposite of laser direction)
-        local targetDir = (levelData.laser.dir + 2) % 4
-        self.grid[ty][tx] = { type = "target", rotation = targetDir }
-        self.targetX, self.targetY = tx, ty
+    -- Place multiple targets as proper road tiles
+    if levelData.targets then
+        for _, target in ipairs(levelData.targets) do
+            local tx, ty, color = target.x, target.y, target.color
+            self.grid[ty][tx] = {
+                type = "target",
+                rotation = 0, -- Targets can receive from any direction
+                targetColor = color
+            }
+        end
     end
 
     local w, h = love.graphics.getDimensions()
     self:calculateTileSize(w, h)
 
-    computeBeamPath(self)
+    computeBeamPaths(self)
 end
 
 function Grid:calculateTileSize(winw, winh)
@@ -473,35 +487,41 @@ function Grid:rotateTile(x, y, delta)
     if not tile or tile.type == "empty" then return end
 
     tile.rotation = (tile.rotation + (delta or 1)) % 4
-    computeBeamPath(self)
+    computeBeamPaths(self)
     self.sounds:play("rotate")
 end
 
 function Grid:getTargetProgress()
-    local totalTargets = (self.targetX and self.targetY) and 1 or 0
-    local hitCount = totalTargets > 0 and next(self.targetsHit) and 1 or 0
+    local totalTargets = #self.targets
+    local hitCount = 0
+
+    for _, hit in pairs(self.targetsHit) do
+        if hit then hitCount = hitCount + 1 end
+    end
+
     return hitCount, totalTargets
 end
 
 function Grid:update(dt)
-    -- Cache frequently accessed properties
-    local beamSpeed = self.beamSpeed
-    local activeBeamPath = self.activeBeamPath
-    local pathLength = #activeBeamPath
+    -- Update beam progression for each active beam
+    for beamColor, path in pairs(self.activeBeamPaths) do
+        local pathLength = #path
+        if pathLength > 0 then
+            self.beamProgress[beamColor] = (self.beamProgress[beamColor] or 0) + self.beamSpeed * dt
+            if self.beamProgress[beamColor] > pathLength then
+                self.beamProgress[beamColor] = pathLength
 
-    -- Update beam progression
-    if pathLength > 0 then
-        self.beamProgress = self.beamProgress + beamSpeed * dt
-        if self.beamProgress > pathLength then
-            self.beamProgress = pathLength
-            local targetX, targetY = self.targetX, self.targetY
-            if targetX and targetY and self.targetsHit[tostring(targetX) .. "," .. tostring(targetY)] and not self.previouslyHit then
-                self.sounds:play("connect")
-                self.previouslyHit = true
+                -- Check if target was just hit
+                local lastSegment = path[#path]
+                local targetKey = lastSegment.x .. "," .. lastSegment.y
+                if self.targetsHit[targetKey] and not (self.previouslyHit[beamColor]) then
+                    self.sounds:play("connect")
+                    self.previouslyHit[beamColor] = true
+                end
             end
+        else
+            self.previouslyHit[beamColor] = false
         end
-    else
-        self.previouslyHit = false
     end
 end
 
@@ -535,8 +555,8 @@ function Grid:draw()
         end
     end
 
-    -- Draw gradual beam
-    drawGradualBeam(self, t)
+    -- Draw gradual beams for all active lasers
+    drawGradualBeams(self, t)
 end
 
 return Grid

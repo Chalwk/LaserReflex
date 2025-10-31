@@ -43,26 +43,63 @@ function LevelGenerator.new()
     return instance
 end
 
-local function placeLaserAndTarget(levelData, gridSize)
-    local side = love_random(4) -- 1: top, 2: right, 3: bottom, 4: left
-    local laserX, laserY, laserDir, targetX, targetY
+local function placeLasersAndTargets(levelData, gridSize)
+    levelData.lasers = {}
+    levelData.targets = {}
 
-    if side == 1 then                                                        -- top
-        laserX, laserY, laserDir = love_random(2, gridSize - 1), 1, 2        -- down
-        targetX, targetY = love_random(2, gridSize - 1), gridSize
-    elseif side == 2 then                                                    -- right
-        laserX, laserY, laserDir = gridSize, love_random(2, gridSize - 1), 3 -- left
-        targetX, targetY = 1, love_random(2, gridSize - 1)
-    elseif side == 3 then                                                    -- bottom
-        laserX, laserY, laserDir = love_random(2, gridSize - 1), gridSize, 0 -- up
-        targetX, targetY = love_random(2, gridSize - 1), 1
-    else                                                                     -- left
-        laserX, laserY, laserDir = 1, love_random(2, gridSize - 1), 1        -- right
-        targetX, targetY = gridSize, love_random(2, gridSize - 1)
+    local laserColors = {"red", "blue", "green", "yellow"}
+    local numPairs = math_min(levelData.levelNumber, 4) -- Up to 4 laser-target pairs
+
+    -- For levels 1-4, use 1 pair; levels 5-8 use 2 pairs, etc.
+    numPairs = math_min(math_floor((levelData.levelNumber + 3) / 4), 4)
+
+    for i = 1, numPairs do
+        local color = laserColors[i]
+        local side1, side2
+
+        -- Ensure lasers and targets are on different sides
+        repeat
+            side1 = love_random(4)
+            side2 = love_random(4)
+        until side1 ~= side2
+
+        local laserX, laserY, laserDir, targetX, targetY
+
+        -- Place laser on side1
+        if side1 == 1 then                                                        -- top
+            laserX, laserY, laserDir = love_random(2, gridSize - 1), 1, 2        -- down
+        elseif side1 == 2 then                                                    -- right
+            laserX, laserY, laserDir = gridSize, love_random(2, gridSize - 1), 3 -- left
+        elseif side1 == 3 then                                                    -- bottom
+            laserX, laserY, laserDir = love_random(2, gridSize - 1), gridSize, 0 -- up
+        else                                                                     -- left
+            laserX, laserY, laserDir = 1, love_random(2, gridSize - 1), 1        -- right
+        end
+
+        -- Place target on side2
+        if side2 == 1 then                                                        -- top
+            targetX, targetY = love_random(2, gridSize - 1), 1
+        elseif side2 == 2 then                                                    -- right
+            targetX, targetY = gridSize, love_random(2, gridSize - 1)
+        elseif side2 == 3 then                                                    -- bottom
+            targetX, targetY = love_random(2, gridSize - 1), gridSize
+        else                                                                     -- left
+            targetX, targetY = 1, love_random(2, gridSize - 1)
+        end
+
+        table_insert(levelData.lasers, {
+            x = laserX,
+            y = laserY,
+            dir = laserDir,
+            color = color
+        })
+
+        table_insert(levelData.targets, {
+            x = targetX,
+            y = targetY,
+            color = color
+        })
     end
-
-    levelData.laser = { x = laserX, y = laserY, dir = laserDir }
-    levelData.target = { x = targetX, y = targetY }
 end
 
 local function getTileConnections(path, index)
@@ -148,13 +185,10 @@ local function generatePath(levelData)
         end
     end
 
-    -- Place path tiles - FIXED: Ensure the tile exists before accessing it
+    -- Place path tiles
     for i, pos in ipairs(path) do
         local connections = getTileConnections(path, i)
-        -- Initialize the row if it doesn't exist
-        if not tiles[pos.y] then
-            tiles[pos.y] = {}
-        end
+        if not tiles[pos.y] then tiles[pos.y] = {} end
         tiles[pos.y][pos.x] = {
             type = determineTileType(connections),
             rotation = 0, -- Will be randomized later
@@ -217,17 +251,28 @@ function LevelGenerator:generateLevel(levelIndex)
 
     local levelData = {
         gridSize = gridSize,
-        laser = {},
-        target = {},
+        lasers = {},
+        targets = {},
         tiles = {},
-        complexity = math_min(0.3 + (levelIndex - 1) * 0.1, 0.8) -- Controls path complexity
+        levelNumber = levelIndex,
+        complexity = math_min(0.3 + (levelIndex - 1) * 0.1, 0.8)
     }
 
-    -- Place laser and target at random positions (ensuring they're not too close)
-    placeLaserAndTarget(levelData, gridSize)
+    -- Place multiple lasers and targets
+    placeLasersAndTargets(levelData, gridSize)
 
-    -- Generate a solvable path
-    generatePath(levelData)
+    -- Generate paths for each laser-target pair
+    for i, laser in ipairs(levelData.lasers) do
+        local target = levelData.targets[i]
+        if target then
+            -- Temporarily set single laser/target for path generation
+            levelData.laser = laser
+            levelData.target = target
+            generatePath(levelData)
+            levelData.laser = nil
+            levelData.target = nil
+        end
+    end
 
     -- Fill remaining tiles with random road pieces
     fillRemainingTiles(levelData)

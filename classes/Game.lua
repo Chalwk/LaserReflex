@@ -4,8 +4,9 @@
 -- Copyright (c) 2025 Jericho Crosby (Chalwk)
 
 local HEADER_TEXT = "Level: %d"
-local WIN_TEXT = "Target reached! Press N for next level."
-local SIDE_TEXT = "Connected: %s"
+local TIMER_TEXT = "Time: %02d:%02d"
+local WIN_TEXT = "All targets reached! Press N for next level. Time: %02d:%02d"
+local SIDE_TEXT = "Targets: %d/%d"
 local FOOTER_TEXT = "LaserReflex - Copyright (c) 2025 Jericho Crosby (Chalwk)"
 
 local string_format = string.format
@@ -33,6 +34,11 @@ function Game.new(levelGenerator, grid, soundManager, colors)
     instance.colors = colors
     instance.winningState = false
 
+    instance.levelStartTime = 0
+    instance.currentTime = 0
+    instance.levelBestTime = nil
+    instance.timerRunning = false
+
     return instance
 end
 
@@ -42,6 +48,11 @@ function Game:generateLevel(levelIndex)
     self.grid:loadLevel(levelData)
     self.selected = { x = nil, y = nil }
     self.winningState = false
+
+    -- Reset and start timer
+    self.levelStartTime = love.timer.getTime()
+    self.currentTime = 0
+    self.timerRunning = true
 end
 
 function Game:onResize(w, h)
@@ -59,11 +70,26 @@ function Game:draw()
 
     love_printf(string_format(HEADER_TEXT, self.currentLevel), 8, 6, screenWidth - 16, "center")
 
-    local hitCount, totalTargets = self.grid:getTargetProgress()
-    local connectedText = hitCount == 1 and "YES" or "NO"
+    -- Display timer in top-right corner
+    local minutes = math.floor(self.currentTime / 60)
+    local seconds = math.floor(self.currentTime % 60)
+    local timerText = string_format(TIMER_TEXT, minutes, seconds)
 
     setFont(self.smallFont)
-    love_print(string_format(SIDE_TEXT, connectedText), 8, 32)
+    love_print(timerText, screenWidth - 100, 6)
+
+    -- Display best time if available
+    if self.levelBestTime then
+        local bestMinutes = math.floor(self.levelBestTime / 60)
+        local bestSeconds = math.floor(self.levelBestTime % 60)
+        local bestTimeText = string_format("Best: %02d:%02d", bestMinutes, bestSeconds)
+        love_print(bestTimeText, screenWidth - 100, 24)
+    end
+
+    local hitCount, totalTargets = self.grid:getTargetProgress()
+
+    setFont(self.smallFont)
+    love_print(string_format(SIDE_TEXT, hitCount, totalTargets), 8, 32)
 
     -- Update winning state based on current progress
     if totalTargets > 0 and hitCount == totalTargets then
@@ -75,7 +101,10 @@ function Game:draw()
     if self.winningState then
         setFont(self.font)
         self.colors:setColor("neon_green_glow")
-        love_printf(WIN_TEXT, 0, 48, screenWidth, "center")
+        local winMinutes = math.floor(self.currentTime / 60)
+        local winSeconds = math.floor(self.currentTime % 60)
+        local winText = string_format(WIN_TEXT, winMinutes, winSeconds)
+        love_printf(winText, 0, 48, screenWidth, "center")
     end
 
     -- Draw controls help
@@ -106,11 +135,22 @@ end
 function Game:update(dt)
     self.grid:update(dt)
 
+    -- Update timer if running and not won
+    if self.timerRunning and not self.winningState then
+        self.currentTime = love.timer.getTime() - self.levelStartTime
+    end
+
     -- Check for win condition each frame
     local hitCount, totalTargets = self.grid:getTargetProgress()
     if totalTargets > 0 and hitCount == totalTargets and not self.winningState then
         self.winningState = true
+        self.timerRunning = false  -- Stop timer when level is completed
         self.sounds:play("win")
+
+        -- Check for best time
+        if not self.levelBestTime or self.currentTime < self.levelBestTime then
+            self.levelBestTime = self.currentTime
+        end
     end
 end
 
@@ -136,12 +176,12 @@ end
 
 function Game:onKeyPressed(key)
     if key == 'r' then
-        -- Restart current level
+        -- Restart current level - timer will reset in generateLevel
         self:generateLevel(self.currentLevel)
         self.winningState = false
         self.sounds:play("restart")
     elseif key == 'n' then
-        -- Next level
+        -- Next level - timer will reset in generateLevel
         local nextLevel = self.currentLevel + 1
         self:generateLevel(nextLevel)
         self.winningState = false

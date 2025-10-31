@@ -63,6 +63,33 @@ function Colors.new()
         laser_core_glow = { 1.0, 1.0, 0.7, 0.8 },
         beam_outer_glow = { 0.4, 1.0, 0.3, 0.4 },
         target_inner_ring = { 1.0, 1.0, 1.0, 0.6 },
+
+        laser_red = { 1.0, 0.2, 0.2 },
+        laser_red_glow = { 1.0, 0.4, 0.4 },
+        target_red = { 0.9, 0.1, 0.1 },
+        target_red_glow = { 1.0, 0.3, 0.3 },
+
+        laser_blue = { 0.2, 0.5, 1.0 },
+        laser_blue_glow = { 0.4, 0.7, 1.0 },
+        target_blue = { 0.1, 0.3, 0.8 },
+        target_blue_glow = { 0.3, 0.5, 1.0 },
+
+        laser_green = { 0.2, 0.8, 0.2 },
+        laser_green_glow = { 0.4, 1.0, 0.4 },
+        target_green = { 0.1, 0.6, 0.1 },
+        target_green_glow = { 0.3, 0.8, 0.3 },
+
+        laser_yellow = { 1.0, 0.8, 0.2 },
+        laser_yellow_glow = { 1.0, 0.9, 0.4 },
+        target_yellow = { 0.8, 0.6, 0.1 },
+        target_yellow_glow = { 1.0, 0.8, 0.3 },
+
+        beam_red = { 1.0, 0.3, 0.3, 0.8 },
+        beam_blue = { 0.3, 0.6, 1.0, 0.8 },
+        beam_green = { 0.3, 1.0, 0.3, 0.8 },
+        beam_yellow = { 1.0, 0.9, 0.3, 0.8 },
+        laser_base = { 1.0, 0.95, 0.4 },
+        laser_emitter = { 1.0, 0.85, 0.2 },
     }
 
     return instance
