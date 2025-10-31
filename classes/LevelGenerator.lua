@@ -37,7 +37,7 @@ do
     end
 end
 
-local DIST_COMPARE = function(a, b) return a.dist < b.dist end
+local DIST_COMPARE = function(a, b) return a.f < b.f end
 
 local LevelGenerator = {}
 LevelGenerator.__index = LevelGenerator
@@ -108,17 +108,17 @@ end
 
 local function getTileConnections(path, index)
     local pos = path[index]
-    local connections = { up = false, right = false, down = false, left = false }
+    local CONNECTIONS = { up = false, right = false, down = false, left = false }
 
     -- Check neighbors in path
     for _, neighbor in ipairs(path) do
-        if neighbor.x == pos.x and neighbor.y == pos.y - 1 then connections.up = true end
-        if neighbor.x == pos.x + 1 and neighbor.y == pos.y then connections.right = true end
-        if neighbor.x == pos.x and neighbor.y == pos.y + 1 then connections.down = true end
-        if neighbor.x == pos.x - 1 and neighbor.y == pos.y then connections.left = true end
+        if neighbor.x == pos.x and neighbor.y == pos.y - 1 then CONNECTIONS.up = true end
+        if neighbor.x == pos.x + 1 and neighbor.y == pos.y then CONNECTIONS.right = true end
+        if neighbor.x == pos.x and neighbor.y == pos.y + 1 then CONNECTIONS.down = true end
+        if neighbor.x == pos.x - 1 and neighbor.y == pos.y then CONNECTIONS.left = true end
     end
 
-    return connections
+    return CONNECTIONS
 end
 
 local function determineTileType(c)
@@ -138,55 +138,161 @@ local function determineTileType(c)
     end
 end
 
+-- Improved A* pathfinding algorithm
+local function aStarPathfinding(startX, startY, targetX, targetY, gridSize, complexity)
+    -- Heuristic function (Manhattan distance)
+    local function heuristic(x1, y1, x2, y2)
+        return math_abs(x1 - x2) + math_abs(y1 - y2)
+    end
+
+    -- Priority queue implementation
+    local openSet = {}
+    local closedSet = {}
+    local cameFrom = {}
+
+    -- Initialize start node
+    local startNode = {
+        x = startX,
+        y = startY,
+        g = 0,  -- Cost from start
+        h = heuristic(startX, startY, targetX, targetY),
+        f = heuristic(startX, startY, targetX, targetY)
+    }
+    startNode.f = startNode.g + startNode.h
+
+    table_insert(openSet, startNode)
+
+    while #openSet > 0 do
+        -- Get node with lowest f cost
+        table_sort(openSet, DIST_COMPARE)
+        local current = openSet[1]
+        table_remove(openSet, 1)
+
+        -- Check if we reached the target
+        if current.x == targetX and current.y == targetY then
+            -- Reconstruct path
+            local path = {}
+            local node = current
+            while node do
+                table_insert(path, 1, {x = node.x, y = node.y})
+                node = cameFrom[node.x .. "," .. node.y]
+            end
+            return path
+        end
+
+        -- Add current to closed set
+        closedSet[current.x .. "," .. current.y] = true
+
+        -- Explore neighbors
+        for _, dir in ipairs(DIRECTIONS) do
+            local neighborX = current.x + dir.dx
+            local neighborY = current.y + dir.dy
+
+            -- Check bounds
+            if neighborX >= 1 and neighborX <= gridSize and neighborY >= 1 and neighborY <= gridSize then
+                local neighborKey = neighborX .. "," .. neighborY
+
+                -- Skip if in closed set
+                if not closedSet[neighborKey] then
+                    local tentative_g = current.g + 1
+
+                    -- Check if we found a better path to this neighbor
+                    local inOpenSet = false
+                    local neighborNode
+
+                    for i, node in ipairs(openSet) do
+                        if node.x == neighborX and node.y == neighborY then
+                            inOpenSet = true
+                            neighborNode = node
+                            break
+                        end
+                    end
+
+                    if not inOpenSet or tentative_g < neighborNode.g then
+                        if not inOpenSet then
+                            neighborNode = {
+                                x = neighborX,
+                                y = neighborY,
+                                g = tentative_g,
+                                h = heuristic(neighborX, neighborY, targetX, targetY)
+                            }
+                            neighborNode.f = neighborNode.g + neighborNode.h
+                            table_insert(openSet, neighborNode)
+                        else
+                            neighborNode.g = tentative_g
+                            neighborNode.f = neighborNode.g + neighborNode.h
+                        end
+
+                        cameFrom[neighborKey] = current
+                    end
+                end
+            end
+        end
+
+        -- Add some randomness based on complexity to explore alternative paths
+        if #openSet > 1 and love_random() < complexity * 0.3 then
+            -- Occasionally shuffle the open set to explore different paths
+            for i = #openSet, 2, -1 do
+                local j = love_random(1, i)
+                openSet[i], openSet[j] = openSet[j], openSet[i]
+            end
+        end
+    end
+
+    -- No path found
+    return nil
+end
+
 local function generatePath(levelData)
     -- Cache levelData properties
     local gridSize = levelData.gridSize
     local complexity = levelData.complexity
     local targetX, targetY = levelData.target.x, levelData.target.y
+    local laserX, laserY = levelData.laser.x, levelData.laser.y
     local tiles = levelData.tiles
 
-    -- Start with laser position
-    local currentX, currentY = levelData.laser.x, levelData.laser.y
-    local path = { { x = currentX, y = currentY } }
-    local visited = {}
-    visited[currentY * gridSize + currentX] = true
+    -- Use A* to find the optimal path
+    local path = aStarPathfinding(laserX, laserY, targetX, targetY, gridSize, complexity)
 
-    -- A* pathfinding to target
-    while currentX ~= targetX or currentY ~= targetY do
-        -- Get possible moves
-        local moves = {}
+    if not path then
+        -- Fallback to original method if A* fails
+        path = {{x = laserX, y = laserY}}
+        local currentX, currentY = laserX, laserY
+        local visited = {}
+        visited[currentY * gridSize + currentX] = true
 
-        for _, dir in ipairs(DIRECTIONS) do
-            local newX, newY = currentX + dir.dx, currentY + dir.dy
-            if newX >= 1 and newX <= gridSize and newY >= 1 and newY <= gridSize then
-                local key = newY * gridSize + newX
-                if not visited[key] then
-                    local distToTarget = math_abs(newX - targetX) + math_abs(newY - targetY)
-                    table_insert(moves, { x = newX, y = newY, dist = distToTarget })
+        while currentX ~= targetX or currentY ~= targetY do
+            local moves = {}
+
+            for _, dir in ipairs(DIRECTIONS) do
+                local newX, newY = currentX + dir.dx, currentY + dir.dy
+                if newX >= 1 and newX <= gridSize and newY >= 1 and newY <= gridSize then
+                    local key = newY * gridSize + newX
+                    if not visited[key] then
+                        local distToTarget = math_abs(newX - targetX) + math_abs(newY - targetY)
+                        table_insert(moves, { x = newX, y = newY, dist = distToTarget })
+                    end
                 end
             end
-        end
 
-        if #moves == 0 then
-            -- Backtrack if stuck
-            if #path > 1 then
-                table_remove(path)
-                currentX, currentY = path[#path].x, path[#path].y
+            if #moves == 0 then
+                if #path > 1 then
+                    table_remove(path)
+                    currentX, currentY = path[#path].x, path[#path].y
+                else
+                    break
+                end
             else
-                break
-            end
-        else
-            -- Choose next move (prefer moves toward target, but add some randomness)
-            table_sort(moves, DIST_COMPARE)
+                table_sort(moves, DIST_COMPARE)
+                local chosenIndex = 1
+                if #moves > 1 and love_random() < complexity then
+                    chosenIndex = love_random(1, math_min(3, #moves))
+                end
 
-            local chosenIndex = 1
-            if #moves > 1 and love_random() < complexity then
-                chosenIndex = love_random(1, math_min(3, #moves))
+                currentX, currentY = moves[chosenIndex].x, moves[chosenIndex].y
+                table_insert(path, { x = currentX, y = currentY })
+                visited[currentY * gridSize + currentX] = true
             end
-
-            currentX, currentY = moves[chosenIndex].x, moves[chosenIndex].y
-            table_insert(path, { x = currentX, y = currentY })
-            visited[currentY * gridSize + currentX] = true
         end
     end
 

@@ -15,7 +15,6 @@ local table_remove = table.remove
 local setLineWidth = love.graphics.setLineWidth
 local rectangle = love.graphics.rectangle
 local circle = love.graphics.circle
-local polygon = love.graphics.polygon
 local line = love.graphics.line
 
 local Grid = {}
