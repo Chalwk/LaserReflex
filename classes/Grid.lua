@@ -16,6 +16,7 @@ local setLineWidth = love.graphics.setLineWidth
 local rectangle = love.graphics.rectangle
 local circle = love.graphics.circle
 local line = love.graphics.line
+local polygon = love.graphics.polygon
 
 local Grid = {}
 Grid.__index = Grid
@@ -273,17 +274,94 @@ local function drawLaneMarkings(connections, cx, cy, half, roadWidth, lineWidth)
     end
 end
 
--- Draw laser emitter symbol
-local function drawLaserEmitter(rotation, cx, cy, size)
-    if rotation == 0 then
-        love.graphics.polygon("fill", cx, cy - size, cx - size / 2, cy + size / 2, cx + size / 2, cy + size / 2)
-    elseif rotation == 1 then
-        love.graphics.polygon("fill", cx + size, cy, cx - size / 2, cy - size / 2, cx - size / 2, cy + size / 2)
-    elseif rotation == 2 then
-        love.graphics.polygon("fill", cx, cy + size, cx - size / 2, cy - size / 2, cx + size / 2, cy - size / 2)
-    elseif rotation == 3 then
-        love.graphics.polygon("fill", cx - size, cy, cx + size / 2, cy - size / 2, cx + size / 2, cy + size / 2)
+local function drawLaserEmitter(self, rotation, cx, cy, size, colorName)
+    local colors = self.colors
+    local outerSize = size
+    local innerSize = size * 0.6
+    local tipSize   = size * 0.3
+
+    local rot = rotation % 4
+
+    -- Cache color strings once
+    local casingColor = "laser_" .. colorName .. "_casing"
+    local glowColor   = "laser_" .. colorName .. "_glow"
+
+    -- Predefined vertex sets for each rotation
+    local outerVerts = {
+        [0] = {cx, cy - outerSize, cx - outerSize / 2, cy + outerSize / 3, cx + outerSize / 2, cy + outerSize / 3},
+        [1] = {cx + outerSize, cy, cx - outerSize / 3, cy - outerSize / 2, cx - outerSize / 3, cy + outerSize / 2},
+        [2] = {cx, cy + outerSize, cx - outerSize / 2, cy - outerSize / 3, cx + outerSize / 2, cy - outerSize / 3},
+        [3] = {cx - outerSize, cy, cx + outerSize / 3, cy - outerSize / 2, cx + outerSize / 3, cy + outerSize / 2}
+    }
+
+    local innerVerts = {
+        [0] = {cx, cy - innerSize, cx - innerSize / 2, cy + innerSize / 4, cx + innerSize / 2, cy + innerSize / 4},
+        [1] = {cx + innerSize, cy, cx - innerSize / 4, cy - innerSize / 2, cx - innerSize / 4, cy + innerSize / 2},
+        [2] = {cx, cy + innerSize, cx - innerSize / 2, cy - innerSize / 4, cx + innerSize / 2, cy - innerSize / 4},
+        [3] = {cx - innerSize, cy, cx + innerSize / 4, cy - innerSize / 2, cx + innerSize / 4, cy + innerSize / 2}
+    }
+
+    local tips = {
+        [0] = {cx - tipSize / 4, cy - outerSize, tipSize / 2, tipSize},
+        [1] = {cx + outerSize - tipSize, cy - tipSize / 4, tipSize, tipSize / 2},
+        [2] = {cx - tipSize / 4, cy + outerSize - tipSize, tipSize / 2, tipSize},
+        [3] = {cx - outerSize, cy - tipSize / 4, tipSize, tipSize / 2}
+    }
+
+    -- Outer casing
+    colors:setColor(casingColor, 1)
+    polygon("fill", outerVerts[rot])
+
+    -- Inner core
+    colors:setColor(glowColor, 1)
+    polygon("fill", innerVerts[rot])
+
+    -- Emitter tip
+    colors:setColor("white_highlight", 1)
+    rectangle("fill", unpack(tips[rot]))
+end
+
+local function drawTarget(self, cx, cy, size, colorName, hit, t)
+    local colors = self.colors
+    local baseSize = size * 0.5
+    local glowSize = size * 0.4
+    local lineLength = size * 0.2
+
+    -- Cache color keys
+    local casingColor = "target_" .. colorName .. "_casing"
+    local glowColor   = "target_" .. colorName .. "_glow"
+    local coreColor   = "target_" .. colorName .. "_core"
+
+    -- Outer diamond (casing)
+    colors:setColor(casingColor, 1)
+    polygon("fill",
+        cx, cy - baseSize,
+        cx + baseSize, cy,
+        cx, cy + baseSize,
+        cx - baseSize, cy
+    )
+
+    -- Inner glow or core
+    local alpha = 1
+    local innerColor = coreColor
+    if hit then
+        innerColor = glowColor
+        alpha = 0.9 + 0.1 * math_sin(t * 8)
     end
+    colors:setColor(innerColor, alpha)
+
+    polygon("fill",
+        cx, cy - glowSize,
+        cx + glowSize, cy,
+        cx, cy + glowSize,
+        cx - glowSize, cy
+    )
+
+    -- Crosshair
+    colors:setColor("white_highlight", 0.8)
+    setLineWidth(2)
+    line(cx - lineLength, cy, cx + lineLength, cy, cx, cy - lineLength, cx, cy + lineLength)
+    setLineWidth(1)
 end
 
 -- Draws a complete road tile
@@ -297,12 +375,12 @@ local function drawRoadTile(self, tileType, rotation, cx, cy, t, gx, gy)
 
     -- Draw base asphalt
     colors:setColor("road_base", 0.9)
-    love.graphics.rectangle("fill", cx - half, cy - half, tileSize, tileSize)
+    rectangle("fill", cx - half, cy - half, tileSize, tileSize)
 
     -- Outline for subtle grid separation
     colors:setColor("road_outline", 0.2)
-    love.graphics.setLineWidth(1)
-    love.graphics.rectangle("line", cx - half, cy - half, tileSize, tileSize)
+    setLineWidth(1)
+    rectangle("line", cx - half, cy - half, tileSize, tileSize)
 
     -- Draw road arms
     local connections = self.roadTileTypes[tileType][rotation + 1]
@@ -313,83 +391,88 @@ local function drawRoadTile(self, tileType, rotation, cx, cy, t, gx, gy)
     if connections.right then drawRoadConnection("right", cx, cy, half, roadWidth) end
 
     -- Draw central intersection block
-    love.graphics.rectangle("fill", cx - roadWidth / 2, cy - roadWidth / 2, roadWidth, roadWidth)
+    rectangle("fill", cx - roadWidth / 2, cy - roadWidth / 2, roadWidth, roadWidth)
 
     -- Lane markings (white lines reaching edges)
     colors:setColor("white_highlight", 0.8)
     drawLaneMarkings(connections, cx, cy, half, roadWidth, lineWidth)
 
-    -- Special handling for lasers and targets
+    -- Special handling for lasers and targets with new shapes
     if tileType == "laser" then
         local laserColor = tile.laserColor or "red"
-        colors:setColor("laser_" .. laserColor .. "_glow", 1)
-        local emitterSize = roadWidth * 0.7
-        drawLaserEmitter(rotation, cx, cy, emitterSize)
+        local emitterSize = roadWidth * 0.8
+        drawLaserEmitter(self, rotation, cx, cy, emitterSize, laserColor)
     elseif tileType == "target" then
         local targetColor = tile.targetColor or "red"
         local hit = self.targetsHit[gx .. "," .. gy]
-        colors:setColor("target_" .. targetColor .. (hit and "_glow" or ""), hit and 0.9 or 1)
-        love.graphics.circle("fill", cx, cy, roadWidth * 0.4)
+        local targetSize = roadWidth * 0.9
+        drawTarget(self, cx, cy, targetSize, targetColor, hit, t)
     end
 end
 
 local function drawGradualBeams(self, t)
     local colors = self.colors
     local tileSize = self.tileSize
+    local beamPaths = self.activeBeamPaths
+    local beamProg = self.beamProgress
+    local getCenter = getTileCenter
 
-    for beamColor, activeBeamPath in pairs(self.activeBeamPaths) do
-        if #activeBeamPath == 0 then goto continue end
+    local pulse = 0.7 + 0.3 * math_sin(t * 8)
 
-        local pulse = 0.7 + 0.3 * math_sin(t * 8)
-        local progress = math_min(self.beamProgress[beamColor] or 0, #activeBeamPath)
+    for beamColor, path in pairs(beamPaths) do
+        local count = #path
+        if count == 0 then goto continue end
 
-        -- Draw the beam segments up to the current progress
-        for i = 2, math_floor(progress) do
-            local segment = activeBeamPath[i]
-            local sx, sy = getTileCenter(self, segment.x, segment.y)
+        local progress = math_min(beamProg[beamColor] or 0, count)
+        local intProg  = math_floor(progress)
+        local partial  = progress - intProg
 
-            -- Draw connection to previous segment (if exists)
-            local prev = activeBeamPath[i - 1]
-            local psx, psy = getTileCenter(self, prev.x, prev.y)
+        local colorKey = "beam_" .. beamColor
+        local faintAlpha  = 0.4 * pulse
+        local strongAlpha = 0.9 * pulse
 
-            -- Connection line with glow
-            colors:setColor("beam_" .. beamColor, 0.4 * pulse)
+        -- Draw full beam segments
+        if intProg >= 2 then
+            local prevSeg = path[1]
+            local psx, psy = getCenter(self, prevSeg.x, prevSeg.y)
             setLineWidth(3)
-            line(psx, psy, sx, sy)
 
-            colors:setColor("beam_" .. beamColor, 0.9 * pulse)
-            setLineWidth(3)
-            line(psx, psy, sx, sy)
+            for i = 2, intProg do
+                local seg = path[i]
+                local sx, sy = getCenter(self, seg.x, seg.y)
+
+                colors:setColor(colorKey, faintAlpha)
+                line(psx, psy, sx, sy)
+                colors:setColor(colorKey, strongAlpha)
+                line(psx, psy, sx, sy)
+
+                psx, psy = sx, sy
+            end
         end
 
-        -- Draw partial progress to next segment
-        local partial = progress - math_floor(progress)
-        if partial > 0 and math_floor(progress) < #activeBeamPath then
-            local currentIndex = math_floor(progress)
-            local nextIndex = currentIndex + 1
+        -- Partial progress toward next segment (only if valid)
+        if partial > 0 and intProg >= 1 and intProg < count then
+            local curr = path[intProg]
+            local next = path[intProg + 1]
 
-            if currentIndex >= 1 and nextIndex <= #activeBeamPath then
-                local currentSeg = activeBeamPath[currentIndex]
-                local nextSeg = activeBeamPath[nextIndex]
-
-                local csx, csy = getTileCenter(self, currentSeg.x, currentSeg.y)
-                local nsx, nsy = getTileCenter(self, nextSeg.x, nextSeg.y)
-
-                -- Interpolated position
+            if curr and next then
+                local csx, csy = getCenter(self, curr.x, curr.y)
+                local nsx, nsy = getCenter(self, next.x, next.y)
                 local isx = csx + (nsx - csx) * partial
                 local isy = csy + (nsy - csy) * partial
 
-                -- Draw partial connection
-                colors:setColor("beam_" .. beamColor, 0.4 * pulse)
+                -- Outer glow
                 setLineWidth(12)
+                colors:setColor(colorKey, faintAlpha)
                 line(csx, csy, isx, isy)
 
-                colors:setColor("beam_" .. beamColor, 0.9 * pulse)
+                -- Inner beam
                 setLineWidth(6)
+                colors:setColor(colorKey, strongAlpha)
                 line(csx, csy, isx, isy)
 
-                -- Draw partial endpoint
-                colors:setColor("beam_" .. beamColor, 0.9 * pulse)
+                -- Endpoint glow
+                colors:setColor(colorKey, strongAlpha)
                 circle("fill", isx, isy, tileSize * 0.12)
             end
         end
