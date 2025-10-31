@@ -9,6 +9,7 @@ local table_remove = table.remove
 
 local math_abs = math.abs
 local math_min = math.min
+local math_max = math.max
 local math_floor = math.floor
 
 local love_random = love.math.random
@@ -57,52 +58,105 @@ local function placeLasersAndTargets(levelData, gridSize)
     -- For levels 1-4, use 1 pair; levels 5-8 use 2 pairs, etc.
     numPairs = math_min(math_floor((levelData.levelNumber + 3) / 4), 4)
 
+    -- Ensure at least 1 pair
+    numPairs = math_max(1, numPairs)
+
+    local usedPositions = {}
+    local availableSides = { 1, 2, 3, 4 }
+
     for i = 1, numPairs do
         local color = LASER_COLORS[i]
-        local side1, side2
+        local sidesCopy = {}
+        for _, side in ipairs(availableSides) do table_insert(sidesCopy, side) end
 
-        -- Ensure lasers and targets are on different sides
-        repeat
-            side1 = love_random(4)
-            side2 = love_random(4)
-        until side1 ~= side2
+        if #sidesCopy < 2 then
+            -- Not enough sides left, reuse sides but ensure different positions
+            sidesCopy = { 1, 2, 3, 4 }
+        end
+
+        -- Shuffle sides to ensure randomness
+        for i = #sidesCopy, 2, -1 do
+            local j = love_random(1, i)
+            sidesCopy[i], sidesCopy[j] = sidesCopy[j], sidesCopy[i]
+        end
+
+        local side1, side2 = sidesCopy[1], sidesCopy[2]
+
+        -- Remove used sides to avoid conflicts in next iterations
+        for idx, side in ipairs(availableSides) do
+            if side == side1 or side == side2 then
+                table_remove(availableSides, idx)
+                break
+            end
+        end
 
         local laserX, laserY, laserDir, targetX, targetY
 
-        -- Place laser on side1
-        if side1 == 1 then                                                       -- top
-            laserX, laserY, laserDir = love_random(2, gridSize - 1), 1, 2        -- down
-        elseif side1 == 2 then                                                   -- right
-            laserX, laserY, laserDir = gridSize, love_random(2, gridSize - 1), 3 -- left
-        elseif side1 == 3 then                                                   -- bottom
-            laserX, laserY, laserDir = love_random(2, gridSize - 1), gridSize, 0 -- up
-        else                                                                     -- left
-            laserX, laserY, laserDir = 1, love_random(2, gridSize - 1), 1        -- right
+        -- Place laser on side1 with position validation
+        local laserPlaced = false
+        local attempts = 0
+        while not laserPlaced and attempts < 20 do
+            attempts = attempts + 1
+            if side1 == 1 then     -- top
+                laserX, laserY = love_random(2, gridSize - 1), 1
+                laserDir = 2       -- down
+            elseif side1 == 2 then -- right
+                laserX, laserY = gridSize, love_random(2, gridSize - 1)
+                laserDir = 3       -- left
+            elseif side1 == 3 then -- bottom
+                laserX, laserY = love_random(2, gridSize - 1), gridSize
+                laserDir = 0       -- up
+            else                   -- left
+                laserX, laserY = 1, love_random(2, gridSize - 1)
+                laserDir = 1       -- right
+            end
+
+            local laserKey = laserX .. "," .. laserY
+            if not usedPositions[laserKey] then
+                usedPositions[laserKey] = true
+                laserPlaced = true
+            end
         end
 
-        -- Place target on side2
-        if side2 == 1 then     -- top
-            targetX, targetY = love_random(2, gridSize - 1), 1
-        elseif side2 == 2 then -- right
-            targetX, targetY = gridSize, love_random(2, gridSize - 1)
-        elseif side2 == 3 then -- bottom
-            targetX, targetY = love_random(2, gridSize - 1), gridSize
-        else                   -- left
-            targetX, targetY = 1, love_random(2, gridSize - 1)
+        -- Place target on side2 with position validation
+        local targetPlaced = false
+        attempts = 0
+        while not targetPlaced and attempts < 20 do
+            attempts = attempts + 1
+            if side2 == 1 then     -- top
+                targetX, targetY = love_random(2, gridSize - 1), 1
+            elseif side2 == 2 then -- right
+                targetX, targetY = gridSize, love_random(2, gridSize - 1)
+            elseif side2 == 3 then -- bottom
+                targetX, targetY = love_random(2, gridSize - 1), gridSize
+            else                   -- left
+                targetX, targetY = 1, love_random(2, gridSize - 1)
+            end
+
+            local targetKey = targetX .. "," .. targetY
+            if not usedPositions[targetKey] then
+                usedPositions[targetKey] = true
+                targetPlaced = true
+            end
         end
 
-        table_insert(levelData.lasers, {
-            x = laserX,
-            y = laserY,
-            dir = laserDir,
-            color = color
-        })
+        if laserPlaced and targetPlaced then
+            table_insert(levelData.lasers, {
+                x = laserX,
+                y = laserY,
+                dir = laserDir,
+                color = color
+            })
 
-        table_insert(levelData.targets, {
-            x = targetX,
-            y = targetY,
-            color = color
-        })
+            table_insert(levelData.targets, {
+                x = targetX,
+                y = targetY,
+                color = color
+            })
+        else
+            -- If we can't place this pair, stop trying more pairs
+            break
+        end
     end
 end
 
@@ -154,7 +208,7 @@ local function aStarPathfinding(startX, startY, targetX, targetY, gridSize, comp
     local startNode = {
         x = startX,
         y = startY,
-        g = 0,  -- Cost from start
+        g = 0, -- Cost from start
         h = heuristic(startX, startY, targetX, targetY),
         f = heuristic(startX, startY, targetX, targetY)
     }
@@ -174,7 +228,7 @@ local function aStarPathfinding(startX, startY, targetX, targetY, gridSize, comp
             local path = {}
             local node = current
             while node do
-                table_insert(path, 1, {x = node.x, y = node.y})
+                table_insert(path, 1, { x = node.x, y = node.y })
                 node = cameFrom[node.x .. "," .. node.y]
             end
             return path
@@ -256,7 +310,7 @@ local function generatePath(levelData)
 
     if not path then
         -- Fallback to original method if A* fails
-        path = {{x = laserX, y = laserY}}
+        path = { { x = laserX, y = laserY } }
         local currentX, currentY = laserX, laserY
         local visited = {}
         visited[currentY * gridSize + currentX] = true

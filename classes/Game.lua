@@ -188,6 +188,12 @@ function Game:onKeyPressed(key)
         self:generateLevel(nextLevel)
         self.winningState = false
         self.sounds:play("level_change")
+    elseif key == 'p' then -- todo: fix this
+        -- Previous level
+        local prevLevel = self.currentLevel - 1
+        self:generateLevel(prevLevel)
+        self.winningState = false
+        self.sounds:play("level_change")
     elseif key == 'escape' then
         love.event.quit()
     elseif key == 'q' or key == 'e' then

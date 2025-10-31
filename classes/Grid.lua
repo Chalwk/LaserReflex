@@ -205,7 +205,7 @@ local function computeBeamPaths(self)
     self.beamProgress = {}
     self.previouslyHit = {}
 
-    for i, laser in ipairs(self.lasers) do
+    for _, laser in ipairs(self.lasers) do
         local visited = {}
         local path = {}
         local found = explore(self, laser.x, laser.y, nil, visited, path, laser.color)
@@ -219,6 +219,7 @@ local function computeBeamPaths(self)
     end
 end
 
+-- Draw
 local function drawGrid(self, sx, sy)
     local colors = self.colors
     local tileSize = self.tileSize
