@@ -80,25 +80,20 @@ local function getTileConnections(path, index)
     return connections
 end
 
-local function determineTileType(connections)
-    local count = 0
-    if connections.up then count = count + 1 end
-    if connections.right then count = count + 1 end
-    if connections.down then count = count + 1 end
-    if connections.left then count = count + 1 end
+local function determineTileType(c)
+    local up, right, down, left = c.up, c.right, c.down, c.left
+    local count = (up and 1 or 0) + (right and 1 or 0) + (down and 1 or 0) + (left and 1 or 0)
 
-    if count == 2 then
-        if (connections.up and connections.down) or (connections.left and connections.right) then
-            return "straight"
-        else
-            return "curve"
-        end
+    if count == 4 then
+        return "cross"
     elseif count == 3 then
         return "t_junction"
-    elseif count == 4 then
-        return "cross"
-    else
+    elseif count == 2 then
+        return (up == down or left == right) and "straight" or "curve"
+    elseif count == 1 then
         return "dead_end"
+    else
+        return "empty"
     end
 end
 

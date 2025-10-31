@@ -26,7 +26,7 @@ local Grid = {}
 Grid.__index = Grid
 
 -- Predefined constants
-local DIRS = {0, 1, 2, 3}
+local DIRS = { 0, 1, 2, 3 }
 local DIST_COMPARE = function(a, b) return a.dist < b.dist end
 
 function Grid.new(soundManager, colors)
@@ -106,17 +106,6 @@ function Grid.new(soundManager, colors)
     return instance
 end
 
-function Grid:debugTileConnections(x, y)
-    local tile = self:getTile(x, y)
-    if not tile then return end
-
-    print(string_format("Tile at (%d,%d): type=%s, rotation=%d", x, y, tile.type, tile.rotation))
-    local connections = self.roadTileTypes[tile.type][tile.rotation + 1]
-    print(string_format("  Connections: up=%s, right=%s, down=%s, left=%s",
-        tostring(connections.up), tostring(connections.right),
-        tostring(connections.down), tostring(connections.left)))
-end
-
 local function inBounds(self, x, y)
     return x >= 1 and x <= self.gw and y >= 1 and y <= self.gh
 end
@@ -129,42 +118,37 @@ end
 -- Helper function to get tile center coordinates
 local function getTileCenter(self, x, y)
     return self.gridOffsetX + (x - 1) * self.tileSize + self.tileSize / 2,
-           self.gridOffsetY + (y - 1) * self.tileSize + self.tileSize / 2
+        self.gridOffsetY + (y - 1) * self.tileSize + self.tileSize / 2
 end
 
 local function explore(self, x, y, incomingDir, visited, path)
     if not inBounds(self, x, y) then return false end
 
-    -- Use numeric key for faster lookup
-    local key = y * (self.gw * 4) + x * 4 + (incomingDir or 0)
+    -- Use a sentinel for "no incoming direction" so nil does not collide with 0
+    local inDirKey = (incomingDir == nil) and 4 or incomingDir
+    local key = y * (self.gw * 5) + x * 5 + inDirKey
     if visited[key] then return false end
     visited[key] = true
 
     local tile = tileAt(self, x, y)
     if not tile or tile.type == "empty" then return false end
 
-    -- SPECIAL CASE: For laser tile, we need to handle it differently
+    -- SPECIAL CASE: Laser - add laser to path, then continue in its emission direction
     if tile.type == "laser" then
-        -- Laser only emits in its direction, so we can only continue in that direction
+        -- Insert laser tile into path (so activeBeamPath[1] is the laser)
+        table_insert(path, { x = x, y = y, incomingDir = incomingDir })
         local laserDir = tile.rotation
-        local canExit = false
-        local exitDir = laserDir
+        local dirVecsX, dirVecsY = self.dirVecsX, self.dirVecsY
+        local newX = x + dirVecsX[laserDir + 1]
+        local newY = y + dirVecsY[laserDir + 1]
+        local nextIncomingDir = (laserDir + 2) % 4
 
-        if exitDir == 0 then canExit = true end -- up
-        if exitDir == 1 then canExit = true end -- right
-        if exitDir == 2 then canExit = true end -- down
-        if exitDir == 3 then canExit = true end -- left
-
-        if canExit then
-            local dirVecsX, dirVecsY = self.dirVecsX, self.dirVecsY
-            local newX = x + dirVecsX[exitDir + 1]
-            local newY = y + dirVecsY[exitDir + 1]
-            local nextIncomingDir = (exitDir + 2) % 4
-
-            if explore(self, newX, newY, nextIncomingDir, visited, path) then
-                return true
-            end
+        if explore(self, newX, newY, nextIncomingDir, visited, path) then
+            return true
         end
+
+        -- backtrack if not found via laser
+        table_remove(path)
         return false
     end
 
@@ -172,11 +156,13 @@ local function explore(self, x, y, incomingDir, visited, path)
     local connections = self.roadTileTypes[tile.type][tile.rotation + 1]
 
     -- Check if we can enter this tile from incoming direction
+    -- Correct mapping: if we entered from the top (incomingDir == 0),
+    -- the tile must have an 'up' connection to accept the beam.
     local canEnter = false
-    if incomingDir == 0 then canEnter = connections.down end    -- Coming from top, need down connection to enter
-    if incomingDir == 1 then canEnter = connections.left end    -- Coming from right, need left connection to enter
-    if incomingDir == 2 then canEnter = connections.up end      -- Coming from bottom, need up connection to enter
-    if incomingDir == 3 then canEnter = connections.right end   -- Coming from left, need right connection to enter
+    if incomingDir == 0 then canEnter = connections.up end    -- came from above -> tile must have up
+    if incomingDir == 1 then canEnter = connections.right end -- came from right -> tile must have right
+    if incomingDir == 2 then canEnter = connections.down end  -- came from below -> tile must have down
+    if incomingDir == 3 then canEnter = connections.left end  -- came from left -> tile must have left
 
     if not canEnter then return false end
 
@@ -187,7 +173,7 @@ local function explore(self, x, y, incomingDir, visited, path)
     -- Check if we reached the target
     local targetX, targetY = self.targetX, self.targetY
     if x == targetX and y == targetY then
-        -- Found the target!
+        -- Found the target: copy path to activeBeamPath and mark target hit
         self.activeBeamPath = {}
         for i, seg in ipairs(path) do
             table_insert(self.activeBeamPath, seg)
@@ -211,8 +197,7 @@ local function explore(self, x, y, incomingDir, visited, path)
                 local newX = x + dirVecsX[dir + 1]
                 local newY = y + dirVecsY[dir + 1]
 
-                -- Calculate the incoming direction for the next tile
-                -- This is the opposite of the direction we're exiting
+                -- incoming direction for the next tile is opposite of dir
                 local nextIncomingDir = (dir + 2) % 4
 
                 if explore(self, newX, newY, nextIncomingDir, visited, path) then
@@ -227,17 +212,8 @@ local function explore(self, x, y, incomingDir, visited, path)
     return false
 end
 
+
 local function computeBeamPath(self)
-
-    -- Debug: print all tile connections
-    print("=== GRID CONNECTIONS ===")
-    for y = 1, self.gh do
-        for x = 1, self.gw do
-            self:debugTileConnections(x, y)
-        end
-    end
-    print("=== END GRID CONNECTIONS ===")
-
     self.activeBeamPath = {}
     self.targetsHit = {}
     self.beamProgress = 0
@@ -249,30 +225,12 @@ local function computeBeamPath(self)
     local path = {}
 
     local startX, startY = laser.x, laser.y
-    local targetX, targetY = self.targetX, self.targetY
-
-    --print(string_format("Laser at (%d,%d) facing %d", startX, startY, laser.d))
-    --print(string_format("Target at (%d,%d)", targetX, targetY))
-
-    -- Start exploration from the laser tile with no incoming direction
-    -- The laser will handle its own direction logic
     local found = explore(self, startX, startY, nil, visited, path)
 
-    if not found then
-        --print("No path found to target")
-        self.activeBeamPath = {}
-    else
-        --print(string_format("Beam path computed with %d segments", #self.activeBeamPath))
-
-        -- Debug: print path
-        for i, seg in ipairs(self.activeBeamPath) do
-            print(string_format("  %d: (%d,%d) incomingDir: %s", i, seg.x, seg.y, tostring(seg.incomingDir)))
-        end
-    end
+    if not found then self.activeBeamPath = {} end
 end
 
 local function drawGrid(self, sx, sy)
-    -- Cache frequently used properties
     local colors = self.colors
     local tileSize = self.tileSize
 
@@ -297,7 +255,7 @@ local function drawGrid(self, sx, sy)
     rectangle("line", sx, sy, tileSize - 1, tileSize - 1)
 end
 
-local function drawRoadTile(self, tileType, rotation, cx, cy, t)
+local function drawRoadTile(self, tileType, rotation, cx, cy, t, gx, gy)
     local tileSize = self.tileSize
     local colors = self.colors
     local size = tileSize * 0.3
@@ -369,7 +327,7 @@ local function drawRoadTile(self, tileType, rotation, cx, cy, t)
         circle("line", cx, cy, size * 0.3)
 
         -- Center dot with hit effect
-        local hit = self.targetsHit[cx .. "," .. cy] -- Simple check, you might want to use grid coordinates
+        local hit = self.targetsHit[gx .. "," .. gy]
         if hit then
             local glow = 0.8 + 0.2 * math_sin(t * 8)
             colors:setColor("neon_green", glow)
@@ -574,7 +532,7 @@ function Grid:draw()
                 local cx = sx + tileSize / 2
                 local cy = sy + tileSize / 2
 
-                drawRoadTile(self, tile.type, tile.rotation, cx, cy, t)
+                drawRoadTile(self, tile.type, tile.rotation, cx, cy, t, x, y)
             end
         end
     end
