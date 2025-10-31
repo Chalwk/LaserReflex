@@ -28,8 +28,8 @@ end
 
 -- Predefined constants
 local DIRECTIONS = {
-    {dx = 1, dy = 0}, {dx = -1, dy = 0},
-    {dx = 0, dy = 1}, {dx = 0, dy = -1}
+    { dx = 1, dy = 0 }, { dx = -1, dy = 0 },
+    { dx = 0, dy = 1 }, { dx = 0, dy = -1 }
 }
 
 local DIST_COMPARE = function(a, b) return a.dist < b.dist end
