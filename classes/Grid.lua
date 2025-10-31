@@ -244,103 +244,94 @@ local function drawGrid(self, sx, sy)
     rectangle("line", sx, sy, tileSize - 1, tileSize - 1)
 end
 
+-- Draw road arm connection (extends to tile edge)
+local function drawRoadConnection(dir, cx, cy, half, roadWidth)
+    if dir == "up" then
+        love.graphics.rectangle("fill", cx - roadWidth / 2, cy - half, roadWidth, half)
+    elseif dir == "down" then
+        love.graphics.rectangle("fill", cx - roadWidth / 2, cy, roadWidth, half)
+    elseif dir == "left" then
+        love.graphics.rectangle("fill", cx - half, cy - roadWidth / 2, half, roadWidth)
+    elseif dir == "right" then
+        love.graphics.rectangle("fill", cx, cy - roadWidth / 2, half, roadWidth)
+    end
+end
+
+-- Draw lane markings that connect between tiles
+local function drawLaneMarkings(connections, cx, cy, half, roadWidth, lineWidth)
+    love.graphics.setLineWidth(lineWidth)
+    if connections.up then
+        love.graphics.line(cx, cy - roadWidth / 3, cx, cy - half)
+    end
+    if connections.down then
+        love.graphics.line(cx, cy + roadWidth / 3, cx, cy + half)
+    end
+    if connections.left then
+        love.graphics.line(cx - half, cy, cx - roadWidth / 3, cy)
+    end
+    if connections.right then
+        love.graphics.line(cx + roadWidth / 3, cy, cx + half, cy)
+    end
+end
+
+-- Draw laser emitter symbol
+local function drawLaserEmitter(rotation, cx, cy, size)
+    if rotation == 0 then
+        love.graphics.polygon("fill", cx, cy - size, cx - size / 2, cy + size / 2, cx + size / 2, cy + size / 2)
+    elseif rotation == 1 then
+        love.graphics.polygon("fill", cx + size, cy, cx - size / 2, cy - size / 2, cx - size / 2, cy + size / 2)
+    elseif rotation == 2 then
+        love.graphics.polygon("fill", cx, cy + size, cx - size / 2, cy - size / 2, cx + size / 2, cy - size / 2)
+    elseif rotation == 3 then
+        love.graphics.polygon("fill", cx - size, cy, cx + size / 2, cy - size / 2, cx + size / 2, cy + size / 2)
+    end
+end
+
+-- Draws a complete road tile
 local function drawRoadTile(self, tileType, rotation, cx, cy, t, gx, gy)
     local tileSize = self.tileSize
     local colors = self.colors
-    local size = tileSize * 0.3
-    local tile = tileAt(self, gx, gy)
+    local half = tileSize / 2
+    local roadWidth = tileSize * 0.4
+    local lineWidth = tileSize * 0.06
+    local tile = self:getTile(gx, gy)
 
-    -- Base circle - different colors for special tiles
-    if tileType == "laser" then
-        local laserColor = tile.laserColor or "red"
-        colors:setColor("laser_" .. laserColor, 0.7)
-    elseif tileType == "target" then
-        local targetColor = tile.targetColor or "red"
-        colors:setColor("target_" .. targetColor, 0.7)
-    else
-        colors:setColor("road_base", 0.9)
-    end
-    circle("fill", cx, cy, size)
+    -- Draw base asphalt
+    colors:setColor("road_base", 0.9)
+    love.graphics.rectangle("fill", cx - half, cy - half, tileSize, tileSize)
 
-    -- Outline - different for special tiles
+    -- Outline for subtle grid separation
+    colors:setColor("road_outline", 0.2)
+    love.graphics.setLineWidth(1)
+    love.graphics.rectangle("line", cx - half, cy - half, tileSize, tileSize)
+
+    -- Draw road arms
+    local connections = self.roadTileTypes[tileType][rotation + 1]
+    colors:setColor("road_connection", 1)
+    if connections.up then drawRoadConnection("up", cx, cy, half, roadWidth) end
+    if connections.down then drawRoadConnection("down", cx, cy, half, roadWidth) end
+    if connections.left then drawRoadConnection("left", cx, cy, half, roadWidth) end
+    if connections.right then drawRoadConnection("right", cx, cy, half, roadWidth) end
+
+    -- Draw central intersection block
+    love.graphics.rectangle("fill", cx - roadWidth / 2, cy - roadWidth / 2, roadWidth, roadWidth)
+
+    -- Lane markings (white lines reaching edges)
+    colors:setColor("white_highlight", 0.8)
+    drawLaneMarkings(connections, cx, cy, half, roadWidth, lineWidth)
+
+    -- Special handling for lasers and targets
     if tileType == "laser" then
         local laserColor = tile.laserColor or "red"
         colors:setColor("laser_" .. laserColor .. "_glow", 1)
+        local emitterSize = roadWidth * 0.7
+        drawLaserEmitter(rotation, cx, cy, emitterSize)
     elseif tileType == "target" then
         local targetColor = tile.targetColor or "red"
-        colors:setColor("target_" .. targetColor .. "_glow", 1)
-    else
-        colors:setColor("road_outline", 1)
-    end
-    setLineWidth(2)
-    circle("line", cx, cy, size)
-
-    -- Draw connections based on tile type and rotation
-    local connections = self.roadTileTypes[tileType][rotation + 1]
-
-    -- Connection lines - different colors for special tiles
-    if tileType == "laser" then
-        local laserColor = tile.laserColor or "red"
-        colors:setColor("laser_" .. laserColor .. "_glow", 0.8)
-    elseif tileType == "target" then
-        local targetColor = tile.targetColor or "red"
-        colors:setColor("target_" .. targetColor .. "_glow", 0.8)
-    else
-        colors:setColor("road_connection", 0.7)
-    end
-    setLineWidth(6)
-
-    if connections.up then line(cx, cy, cx, cy - size) end
-    if connections.right then line(cx, cy, cx + size, cy) end
-    if connections.down then line(cx, cy, cx, cy + size) end
-    if connections.left then line(cx, cy, cx - size, cy) end
-
-    -- Special center symbols for laser and target
-    if tileType == "laser" then
-        -- Laser emitter symbol (triangle pointing in direction)
-        colors:setColor("white_highlight", 1)
-        local pulse = 0.7 + 0.3 * math_sin(t * 5)
-        local emitterSize = size * 0.4
-
-        if rotation == 0 then     -- up
-            polygon("fill", cx, cy - emitterSize, cx - emitterSize, cy + emitterSize, cx + emitterSize, cy + emitterSize)
-        elseif rotation == 1 then -- right
-            polygon("fill", cx + emitterSize, cy, cx - emitterSize, cy - emitterSize, cx - emitterSize, cy + emitterSize)
-        elseif rotation == 2 then -- down
-            polygon("fill", cx, cy + emitterSize, cx - emitterSize, cy - emitterSize, cx + emitterSize, cy - emitterSize)
-        elseif rotation == 3 then -- left
-            polygon("fill", cx - emitterSize, cy, cx + emitterSize, cy - emitterSize, cx + emitterSize, cy + emitterSize)
-        end
-
-        -- Pulsing core
-        local laserColor = tile.laserColor or "red"
-        colors:setColor("laser_" .. laserColor .. "_glow", pulse)
-        circle("fill", cx, cy, size * 0.15)
-    elseif tileType == "target" then
-        -- Target symbol (bullseye)
-        colors:setColor("white_highlight", 1)
-        setLineWidth(2)
-        circle("line", cx, cy, size * 0.6)
-        circle("line", cx, cy, size * 0.3)
-
-        -- Center dot with hit effect
         local hit = self.targetsHit[gx .. "," .. gy]
-        local targetColor = tile.targetColor or "red"
-        if hit then
-            local glow = 0.8 + 0.2 * math_sin(t * 8)
-            colors:setColor("target_" .. targetColor .. "_glow", glow)
-            circle("fill", cx, cy, size * 0.2)
-        else
-            colors:setColor("target_" .. targetColor, 1)
-            circle("fill", cx, cy, size * 0.2)
-        end
-    else
-        -- Regular road center dot
-        colors:setColor("road_center", 0.9)
-        circle("fill", cx, cy, size * 0.2)
+        colors:setColor("target_" .. targetColor .. (hit and "_glow" or ""), hit and 0.9 or 1)
+        love.graphics.circle("fill", cx, cy, roadWidth * 0.4)
     end
-
-    setLineWidth(1)
 end
 
 local function drawGradualBeams(self, t)
