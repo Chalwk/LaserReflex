@@ -13,24 +13,30 @@ local math_floor = math.floor
 
 local love_random = love.math.random
 
+-- Predefined constants
+local LASER_COLORS = { "red", "blue", "green", "yellow" }
 local TILE_TYPES = { "straight", "curve", "t_junction", "cross", "dead_end" }
-local WEIGHTS = { 0.3, 0.25, 0.2, 0.1, 0.15 } -- Probability weights
+local PROBABILITY_WEIGHTS = { -- tile weights
+    0.3,                      -- straight (most common)
+    0.25,                     -- curve
+    0.2,                      -- t_junction
+    0.1,                      -- cross
+    0.15,                     -- dead_end
+}
+local CONNECTIONS = { up = false, right = false, down = false, left = false }
+local DIRECTIONS = {
+    { dx = 1, dy = 0 }, { dx = -1, dy = 0 },
+    { dx = 0, dy = 1 }, { dx = 0, dy = -1 },
+}
 
--- Precomputed cumulative weights
 local CUMULATIVE_WEIGHTS = {}
 do
     local total = 0
-    for i, weight in ipairs(WEIGHTS) do
+    for i, weight in ipairs(PROBABILITY_WEIGHTS) do
         total = total + weight
         CUMULATIVE_WEIGHTS[i] = total
     end
 end
-
--- Predefined constants
-local DIRECTIONS = {
-    { dx = 1, dy = 0 }, { dx = -1, dy = 0 },
-    { dx = 0, dy = 1 }, { dx = 0, dy = -1 }
-}
 
 local DIST_COMPARE = function(a, b) return a.dist < b.dist end
 
@@ -47,14 +53,13 @@ local function placeLasersAndTargets(levelData, gridSize)
     levelData.lasers = {}
     levelData.targets = {}
 
-    local laserColors = {"red", "blue", "green", "yellow"}
     local numPairs = math_min(levelData.levelNumber, 4) -- Up to 4 laser-target pairs
 
     -- For levels 1-4, use 1 pair; levels 5-8 use 2 pairs, etc.
     numPairs = math_min(math_floor((levelData.levelNumber + 3) / 4), 4)
 
     for i = 1, numPairs do
-        local color = laserColors[i]
+        local color = LASER_COLORS[i]
         local side1, side2
 
         -- Ensure lasers and targets are on different sides
@@ -66,24 +71,24 @@ local function placeLasersAndTargets(levelData, gridSize)
         local laserX, laserY, laserDir, targetX, targetY
 
         -- Place laser on side1
-        if side1 == 1 then                                                        -- top
+        if side1 == 1 then                                                       -- top
             laserX, laserY, laserDir = love_random(2, gridSize - 1), 1, 2        -- down
-        elseif side1 == 2 then                                                    -- right
+        elseif side1 == 2 then                                                   -- right
             laserX, laserY, laserDir = gridSize, love_random(2, gridSize - 1), 3 -- left
-        elseif side1 == 3 then                                                    -- bottom
+        elseif side1 == 3 then                                                   -- bottom
             laserX, laserY, laserDir = love_random(2, gridSize - 1), gridSize, 0 -- up
         else                                                                     -- left
             laserX, laserY, laserDir = 1, love_random(2, gridSize - 1), 1        -- right
         end
 
         -- Place target on side2
-        if side2 == 1 then                                                        -- top
+        if side2 == 1 then     -- top
             targetX, targetY = love_random(2, gridSize - 1), 1
-        elseif side2 == 2 then                                                    -- right
+        elseif side2 == 2 then -- right
             targetX, targetY = gridSize, love_random(2, gridSize - 1)
-        elseif side2 == 3 then                                                    -- bottom
+        elseif side2 == 3 then -- bottom
             targetX, targetY = love_random(2, gridSize - 1), gridSize
-        else                                                                     -- left
+        else                   -- left
             targetX, targetY = 1, love_random(2, gridSize - 1)
         end
 
@@ -104,17 +109,16 @@ end
 
 local function getTileConnections(path, index)
     local pos = path[index]
-    local connections = { up = false, right = false, down = false, left = false }
 
     -- Check neighbors in path
     for _, neighbor in ipairs(path) do
-        if neighbor.x == pos.x and neighbor.y == pos.y - 1 then connections.up = true end
-        if neighbor.x == pos.x + 1 and neighbor.y == pos.y then connections.right = true end
-        if neighbor.x == pos.x and neighbor.y == pos.y + 1 then connections.down = true end
-        if neighbor.x == pos.x - 1 and neighbor.y == pos.y then connections.left = true end
+        if neighbor.x == pos.x and neighbor.y == pos.y - 1 then CONNECTIONS.up = true end
+        if neighbor.x == pos.x + 1 and neighbor.y == pos.y then CONNECTIONS.right = true end
+        if neighbor.x == pos.x and neighbor.y == pos.y + 1 then CONNECTIONS.down = true end
+        if neighbor.x == pos.x - 1 and neighbor.y == pos.y then CONNECTIONS.left = true end
     end
 
-    return connections
+    return CONNECTIONS
 end
 
 local function determineTileType(c)
@@ -126,7 +130,8 @@ local function determineTileType(c)
     elseif count == 3 then
         return "t_junction"
     elseif count == 2 then
-        return (up == down or left == right) and "straight" or "curve"    elseif count == 1 then
+        return (up == down or left == right) and "straight" or "curve"
+    elseif count == 1 then
         return "dead_end"
     else
         return "empty"
