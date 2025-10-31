@@ -23,7 +23,6 @@ local PROBABILITY_WEIGHTS = { -- tile weights
     0.1,                      -- cross
     0.15,                     -- dead_end
 }
-local CONNECTIONS = { up = false, right = false, down = false, left = false }
 local DIRECTIONS = {
     { dx = 1, dy = 0 }, { dx = -1, dy = 0 },
     { dx = 0, dy = 1 }, { dx = 0, dy = -1 },
@@ -109,16 +108,17 @@ end
 
 local function getTileConnections(path, index)
     local pos = path[index]
+    local connections = { up = false, right = false, down = false, left = false }
 
     -- Check neighbors in path
     for _, neighbor in ipairs(path) do
-        if neighbor.x == pos.x and neighbor.y == pos.y - 1 then CONNECTIONS.up = true end
-        if neighbor.x == pos.x + 1 and neighbor.y == pos.y then CONNECTIONS.right = true end
-        if neighbor.x == pos.x and neighbor.y == pos.y + 1 then CONNECTIONS.down = true end
-        if neighbor.x == pos.x - 1 and neighbor.y == pos.y then CONNECTIONS.left = true end
+        if neighbor.x == pos.x and neighbor.y == pos.y - 1 then connections.up = true end
+        if neighbor.x == pos.x + 1 and neighbor.y == pos.y then connections.right = true end
+        if neighbor.x == pos.x and neighbor.y == pos.y + 1 then connections.down = true end
+        if neighbor.x == pos.x - 1 and neighbor.y == pos.y then connections.left = true end
     end
 
-    return CONNECTIONS
+    return connections
 end
 
 local function determineTileType(c)
