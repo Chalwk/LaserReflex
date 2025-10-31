@@ -9,6 +9,8 @@ local WIN_TEXT = "All targets reached! Press N for next level. Time: %02d:%02d"
 local SIDE_TEXT = "Targets: %d/%d"
 local FOOTER_TEXT = "PathFinder - Copyright (c) 2025 Jericho Crosby (Chalwk)"
 
+local math_sin = math.sin
+local math_floor = math.floor
 local string_format = string.format
 
 local love_print = love.graphics.print
@@ -71,8 +73,8 @@ function Game:draw()
     love_printf(string_format(HEADER_TEXT, self.currentLevel), 8, 6, screenWidth - 16, "center")
 
     -- Display timer in top-right corner
-    local minutes = math.floor(self.currentTime / 60)
-    local seconds = math.floor(self.currentTime % 60)
+    local minutes = math_floor(self.currentTime / 60)
+    local seconds = math_floor(self.currentTime % 60)
     local timerText = string_format(TIMER_TEXT, minutes, seconds)
 
     setFont(self.smallFont)
@@ -80,8 +82,8 @@ function Game:draw()
 
     -- Display best time if available
     if self.levelBestTime then
-        local bestMinutes = math.floor(self.levelBestTime / 60)
-        local bestSeconds = math.floor(self.levelBestTime % 60)
+        local bestMinutes = math_floor(self.levelBestTime / 60)
+        local bestSeconds = math_floor(self.levelBestTime % 60)
         local bestTimeText = string_format("Best: %02d:%02d", bestMinutes, bestSeconds)
         love_print(bestTimeText, screenWidth - 100, 24)
     end
@@ -101,8 +103,8 @@ function Game:draw()
     if self.winningState then
         setFont(self.font)
         self.colors:setColor("neon_green_glow")
-        local winMinutes = math.floor(self.currentTime / 60)
-        local winSeconds = math.floor(self.currentTime % 60)
+        local winMinutes = math_floor(self.currentTime / 60)
+        local winSeconds = math_floor(self.currentTime % 60)
         local winText = string_format(WIN_TEXT, winMinutes, winSeconds)
         love_printf(winText, 0, 48, screenWidth, "center")
     end
@@ -125,7 +127,7 @@ function Game:draw()
         local sx = self.grid.gridOffsetX + (self.selected.x - 1) * self.grid.tileSize
         local sy = self.grid.gridOffsetY + (self.selected.y - 1) * self.grid.tileSize
 
-        self.colors:setColor("selection_glow", 0.8 + 0.2 * math.sin(getTime() * 6))
+        self.colors:setColor("selection_glow", 0.8 + 0.2 * math_sin(getTime() * 6))
         setLineWidth(3)
         rectangle("line", sx, sy, self.grid.tileSize - 1, self.grid.tileSize - 1)
         setLineWidth(1)

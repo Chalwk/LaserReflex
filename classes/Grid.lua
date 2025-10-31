@@ -349,11 +349,6 @@ local function drawGradualBeams(self, t)
             local segment = activeBeamPath[i]
             local sx, sy = getTileCenter(self, segment.x, segment.y)
 
-            -- Draw beam segment (glowing dot at each tile)
-            colors:setColor("beam_" .. beamColor, 0.9 * pulse)
-            setLineWidth(8)
-            circle("fill", sx, sy, tileSize * 0.12)
-
             -- Draw connection to previous segment (if exists)
             local prev = activeBeamPath[i - 1]
             local psx, psy = getTileCenter(self, prev.x, prev.y)
