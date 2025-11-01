@@ -12,6 +12,8 @@ local math_abs = math.abs
 local math_min = math.min
 local math_floor = math.floor
 
+local pairs, ipairs = pairs, ipairs
+
 local love_random = love.math.random
 
 -- Predefined constants
@@ -24,6 +26,7 @@ local PROBABILITY_WEIGHTS = { -- tile weights
     0.1,                      -- cross
     0.10                      -- dead_end (previous 0.15)
 }
+
 local DIRECTIONS = {
     { dx = 1, dy = 0 }, { dx = -1, dy = 0 },
     { dx = 0, dy = 1 }, { dx = 0, dy = -1 }
@@ -200,7 +203,7 @@ local function heuristic(x1, y1, x2, y2)
     return math_abs(x1 - x2) + math_abs(y1 - y2)
 end
 
--- Improved A* pathfinding algorithm
+-- A* pathfinding algorithm
 local function aStarPathfinding(startX, startY, targetX, targetY, gridSize, complexity)
     -- Priority queue implementation
     local openSet = {}
@@ -257,7 +260,7 @@ local function aStarPathfinding(startX, startY, targetX, targetY, gridSize, comp
                     local inOpenSet = false
                     local neighborNode
 
-                    for i, node in ipairs(openSet) do
+                    for _, node in ipairs(openSet) do
                         if node.x == neighborX and node.y == neighborY then
                             inOpenSet = true
                             neighborNode = node
@@ -342,6 +345,7 @@ local function randomizeRotations(levelData)
     end
 end
 
+-- Path generation with conflict detection
 local function generateNonConflictingPaths(levelData)
     local gridSize = levelData.gridSize
     local tiles = levelData.tiles or {}
@@ -356,25 +360,61 @@ local function generateNonConflictingPaths(levelData)
         end
     end
 
+    -- Track which tiles are used by which paths
+    local tileUsage = {} -- key: "x,y" -> table of laser indices using this tile
+
     -- Generate paths for each laser-target pair
     for i, laser in ipairs(levelData.lasers) do
         local target = levelData.targets[i]
         if target then
-            local path = aStarPathfinding(laser.x, laser.y, target.x, target.y, gridSize, levelData.complexity)
+            -- Try multiple pathfinding attempts to find a path with minimal conflicts
+            local bestPath, bestConflictScore = nil, math.huge
 
-            if path then
-                -- Place path tiles, avoiding conflicts with existing paths
-                for j, pos in ipairs(path) do
+            for attempt = 1, 8 do
+                local complexity = 0.1 + (attempt - 1) * 0.1
+                local path = aStarPathfinding(laser.x, laser.y, target.x, target.y, gridSize, complexity)
+
+                if path then
+                    -- Calculate conflict score for this path
+                    local conflictScore = 0
+                    for j, pos in ipairs(path) do
+                        if j > 1 and j < #path then -- Don't count start/end positions
+                            local key = pos.x .. "," .. pos.y
+                            if tileUsage[key] then
+                                -- This tile is already used by other paths
+                                conflictScore = conflictScore + #tileUsage[key]
+                            end
+                        end
+                    end
+
+                    if conflictScore < bestConflictScore then
+                        bestPath, bestConflictScore = path, conflictScore
+                    end
+                end
+            end
+
+            if bestPath then
+                -- Place the best path found
+                for j, pos in ipairs(bestPath) do
                     if not tiles[pos.y] then tiles[pos.y] = {} end
 
                     -- Only place tile if it's not already part of another path (except start/end)
-                    if j == 1 or j == #path or not tiles[pos.y][pos.x] or tiles[pos.y][pos.x].type == "empty" then
-                        local connections = getTileConnections(path, j)
+                    if j == 1 or j == #bestPath or not tiles[pos.y][pos.x] or tiles[pos.y][pos.x].type == "empty" then
+                        local connections = getTileConnections(bestPath, j)
                         tiles[pos.y][pos.x] = {
                             type = determineTileType(connections),
                             rotation = 0,
                             connections = connections
                         }
+
+                        -- Track tile usage (except for start/end positions)
+                        if j > 1 and j < #bestPath then
+                            local key = pos.x .. "," .. pos.y
+                            if not tileUsage[key] then
+                                tileUsage[key] = {}
+                            end
+                            table_insert(tileUsage[key], i)
+                        end
                     end
                 end
             end
@@ -382,31 +422,137 @@ local function generateNonConflictingPaths(levelData)
     end
 
     levelData.tiles = tiles
+    return tileUsage
 end
 
-local function validateLevelSolvability(levelData)
-    local totalTargets = #levelData.targets
-    local reachableTargets = 0
+-- NEW: Comprehensive solvability checker
+local function isLevelSolvable(levelData)
+    local gridSize = levelData.gridSize
 
-    -- Simple check: ensure each target has at least one possible path from its corresponding laser
-    for i, laser in ipairs(levelData.lasers) do
-        local target = levelData.targets[i]
-        if target then
-            local path = aStarPathfinding(laser.x, laser.y, target.x, target.y, levelData.gridSize, 0.1)
-            if path then
-                reachableTargets = reachableTargets + 1
+    -- Create a temporary grid to test solvability
+    local tempGrid = {}
+    for y = 1, gridSize do
+        tempGrid[y] = {}
+        for x = 1, gridSize do
+            if levelData.tiles[y] and levelData.tiles[y][x] then
+                tempGrid[y][x] = {
+                    type = levelData.tiles[y][x].type,
+                    rotation = levelData.tiles[y][x].rotation
+                }
             else
-                print("No path found for " .. laser.color .. " laser to target")
+                tempGrid[y][x] = { type = "empty", rotation = 0 }
             end
         end
     end
 
-    local valid = reachableTargets == totalTargets
-    if not valid then
-        print("Level validation failed: " .. reachableTargets .. "/" .. totalTargets .. " targets reachable")
+    -- Place lasers and targets
+    for _, laser in ipairs(levelData.lasers) do
+        tempGrid[laser.y][laser.x] = { type = "laser", rotation = laser.dir, laserColor = laser.color }
     end
 
-    return valid
+    for _, target in ipairs(levelData.targets) do
+        tempGrid[target.y][target.x] = { type = "target", rotation = 0, targetColor = target.color }
+    end
+
+    -- Test if all laser-target pairs can be connected
+    for i, laser in ipairs(levelData.lasers) do
+        local target = levelData.targets[i]
+        if not target then return false end
+
+        local path = aStarPathfinding(laser.x, laser.y, target.x, target.y, gridSize, 0.1)
+        if not path then return false end
+    end
+
+    return true
+end
+
+local function areAllPairsSimultaneouslySolvable(levelData)
+    local gridSize = levelData.gridSize
+
+    -- Build simplified grid structure (no rotation randomization)
+    local grid = {}
+    for y = 1, gridSize do
+        grid[y] = {}
+        for x = 1, gridSize do
+            local t = levelData.tiles[y] and levelData.tiles[y][x]
+            grid[y][x] = t and { type = t.type, rotation = t.rotation } or { type = "empty", rotation = 0 }
+        end
+    end
+
+    -- Place lasers and targets
+    for _, laser in ipairs(levelData.lasers) do
+        grid[laser.y][laser.x] = { type = "laser", rotation = laser.dir, laserColor = laser.color }
+    end
+    for _, target in ipairs(levelData.targets) do
+        grid[target.y][target.x] = { type = "target", rotation = 0, targetColor = target.color }
+    end
+
+    -- Simulate all beams simultaneously
+    local usedTiles = {}
+    for i, laser in ipairs(levelData.lasers) do
+        local target = levelData.targets[i]
+        local path = aStarPathfinding(laser.x, laser.y, target.x, target.y, gridSize, 0.1)
+        if not path then return false end
+
+        for j, pos in ipairs(path) do
+            if j > 1 and j < #path then
+                local key = pos.x .. "," .. pos.y
+                -- Conflict: two lasers use same tile
+                if usedTiles[key] then return false end
+                usedTiles[key] = true
+            end
+        end
+    end
+
+    return true
+end
+
+
+-- NEW: Enhanced validation with multiple attempts
+local function validateLevelSolvability(levelData)
+    -- Quick initial check
+    if not isLevelSolvable(levelData) then return false end
+
+    -- For levels with multiple pairs, do additional checks
+    if #levelData.lasers > 1 then
+        -- Test if paths can work together
+        local sharedTiles, totalPathTiles = 0, 0
+
+        -- Count shared tiles between paths
+        local tileUsage = {}
+        for i, laser in ipairs(levelData.lasers) do
+            local target = levelData.targets[i]
+            if target then
+                local path = aStarPathfinding(laser.x, laser.y, target.x, target.y, levelData.gridSize, 0.1)
+                if path then
+                    for j, pos in ipairs(path) do
+                        if j > 1 and j < #path then -- Don't count start/end
+                            local key = pos.x .. "," .. pos.y
+                            if not tileUsage[key] then tileUsage[key] = 0 end
+                            tileUsage[key] = tileUsage[key] + 1
+                            totalPathTiles = totalPathTiles + 1
+                        end
+                    end
+                end
+            end
+        end
+
+        -- Count how many tiles are shared by multiple paths
+        for _, count in pairs(tileUsage) do
+            if count > 1 then
+                sharedTiles = sharedTiles + count - 1
+            end
+        end
+
+        -- If too many tiles are shared, it might be unsolvable
+        local sharedRatio = totalPathTiles > 0 and sharedTiles / totalPathTiles or 0
+        -- More than 50% of path tiles are shared
+        if sharedRatio > 0.5 then return false end
+
+        if not areAllPairsSimultaneouslySolvable(levelData) then return false end
+    end
+
+    return true
 end
 
 function LevelGenerator:generateLevel(levelIndex)
@@ -426,24 +572,31 @@ function LevelGenerator:generateLevel(levelIndex)
         complexity = math_min(0.3 + (levelIndex - 1) * 0.1, 0.8)
     }
 
-    -- Place multiple lasers and targets (with the fixed function)
-    placeLasersAndTargets(levelData, gridSize)
+    local maxTotalAttempts = 15
+    local totalAttempts = 0
 
-    -- Generate non-conflicting paths for all laser-target pairs
-    generateNonConflictingPaths(levelData)
+    while totalAttempts < maxTotalAttempts do
+        totalAttempts = totalAttempts + 1
 
-    -- Validate level solvability and regenerate if needed
-    local maxAttempts = 10
-    local attempts = 0
-    while attempts < maxAttempts and not validateLevelSolvability(levelData) do
-        attempts = attempts + 1
-        -- Regenerate paths
-        levelData.tiles = {} -- Clear existing tiles
+        -- Clear previous data
+        levelData.lasers = {}
+        levelData.targets = {}
+        levelData.tiles = {}
+
+        -- Place multiple lasers and targets
+        placeLasersAndTargets(levelData, gridSize)
+
+        -- Generate non-conflicting paths with enhanced algorithm
         generateNonConflictingPaths(levelData)
-    end
 
-    if attempts >= maxAttempts then
-        print("Warning: Level " .. levelIndex .. " may not be fully solvable after " .. maxAttempts .. " attempts")
+        -- Validate level solvability
+        if validateLevelSolvability(levelData) then
+            -- Level is solvable, proceed
+            break
+        elseif totalAttempts == maxTotalAttempts then
+            print("Warning: Level " ..
+                levelIndex .. " may not be fully solvable after " .. maxTotalAttempts .. " attempts")
+        end
     end
 
     -- Fill remaining tiles with random road pieces

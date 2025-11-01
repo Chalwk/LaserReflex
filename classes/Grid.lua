@@ -119,35 +119,6 @@ local function getTileCenter(self, x, y)
         self.gridOffsetY + (y - 1) * self.tileSize + self.tileSize / 2
 end
 
-function Grid:drawTileConnections(x, y)
-    local tile = self:getTile(x, y)
-    if not tile then return end
-
-    local cx, cy = getTileCenter(self, x, y)
-    local size = self.tileSize * 0.3
-    local colors = self.colors
-
-    local connections = self.roadTileTypes[tile.type][tile.rotation + 1]
-
-    colors:setColor("red", 0.8)
-    if connections.up then
-        love.graphics.line(cx, cy - size, cx, cy - size / 2)
-        love.graphics.circle("fill", cx, cy - size, 3)
-    end
-    if connections.right then
-        love.graphics.line(cx + size, cy, cx + size / 2, cy)
-        love.graphics.circle("fill", cx + size, cy, 3)
-    end
-    if connections.down then
-        love.graphics.line(cx, cy + size, cx, cy + size / 2)
-        love.graphics.circle("fill", cx, cy + size, 3)
-    end
-    if connections.left then
-        love.graphics.line(cx - size, cy, cx - size / 2, cy)
-        love.graphics.circle("fill", cx - size, cy, 3)
-    end
-end
-
 local function canBeamTravelThroughTile(self, tile, incomingDir, outgoingDir)
     if not tile or tile.type == "empty" then return false end
 
@@ -263,7 +234,7 @@ local function findShortestPath(self, startX, startY, targetColor)
     return nil -- No path found
 end
 
--- BFS approach
+-- Breadth-First Search algorithm
 local function computeBeamPaths(self)
     self.activeBeamPaths = {}
     self.targetsHit = {}
@@ -330,18 +301,20 @@ end
 
 -- Draw lane markings that connect between tiles
 local function drawLaneMarkings(connections, cx, cy, half, roadWidth, lineWidth)
-    love.graphics.setLineWidth(lineWidth)
+    local third = roadWidth / 3
+    setLineWidth(lineWidth)
+
     if connections.up then
-        love.graphics.line(cx, cy - roadWidth / 3, cx, cy - half)
+        line(cx, cy - third, cx, cy - half)
     end
     if connections.down then
-        love.graphics.line(cx, cy + roadWidth / 3, cx, cy + half)
+        line(cx, cy + third, cx, cy + half)
     end
     if connections.left then
-        love.graphics.line(cx - half, cy, cx - roadWidth / 3, cy)
+        line(cx - half, cy, cx - third, cy)
     end
     if connections.right then
-        love.graphics.line(cx + roadWidth / 3, cy, cx + half, cy)
+        line(cx + third, cy, cx + half, cy)
     end
 end
 

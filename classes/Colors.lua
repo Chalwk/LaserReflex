@@ -12,6 +12,9 @@ function Colors.new()
     local instance = setmetatable({}, Colors)
 
     instance.colors = {
+
+        red = { 1.0, 0.2, 0.2 },
+
         road_base = { 0.3, 0.3, 0.5 },
         road_outline = { 0.5, 0.5, 0.8 },
         road_connection = { 0.7, 0.7, 1.0 },
