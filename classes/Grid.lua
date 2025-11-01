@@ -346,33 +346,33 @@ local function drawLaneMarkings(connections, cx, cy, half, roadWidth, lineWidth)
 end
 
 local function drawLaserEmitter(self, rotation, cx, cy, size, colorName)
-    local colors      = self.colors
-    local outerSize   = size
-    local innerSize   = size * 0.6
-    local tipSize     = size * 0.3
+    local colors = self.colors
+    local outerSize = size
+    local innerSize = size * 0.6
+    local tipSize = size * 0.3
 
-    local rot         = rotation % 4
+    local rot = rotation % 4
 
     -- Cache color strings once
     local casingColor = "laser_" .. colorName .. "_casing"
-    local glowColor   = "laser_" .. colorName .. "_glow"
+    local glowColor = "laser_" .. colorName .. "_glow"
 
     -- Predefined vertex sets for each rotation
-    local outerVerts  = {
+    local outerVerts = {
         [0] = { cx, cy - outerSize, cx - outerSize / 2, cy + outerSize / 3, cx + outerSize / 2, cy + outerSize / 3 },
         [1] = { cx + outerSize, cy, cx - outerSize / 3, cy - outerSize / 2, cx - outerSize / 3, cy + outerSize / 2 },
         [2] = { cx, cy + outerSize, cx - outerSize / 2, cy - outerSize / 3, cx + outerSize / 2, cy - outerSize / 3 },
         [3] = { cx - outerSize, cy, cx + outerSize / 3, cy - outerSize / 2, cx + outerSize / 3, cy + outerSize / 2 }
     }
 
-    local innerVerts  = {
+    local innerVerts = {
         [0] = { cx, cy - innerSize, cx - innerSize / 2, cy + innerSize / 4, cx + innerSize / 2, cy + innerSize / 4 },
         [1] = { cx + innerSize, cy, cx - innerSize / 4, cy - innerSize / 2, cx - innerSize / 4, cy + innerSize / 2 },
         [2] = { cx, cy + innerSize, cx - innerSize / 2, cy - innerSize / 4, cx + innerSize / 2, cy - innerSize / 4 },
         [3] = { cx - innerSize, cy, cx + innerSize / 4, cy - innerSize / 2, cx + innerSize / 4, cy + innerSize / 2 }
     }
 
-    local tips        = {
+    local tips = {
         [0] = { cx - tipSize / 4, cy - outerSize, tipSize / 2, tipSize },
         [1] = { cx + outerSize - tipSize, cy - tipSize / 4, tipSize, tipSize / 2 },
         [2] = { cx - tipSize / 4, cy + outerSize - tipSize, tipSize / 2, tipSize },
@@ -393,15 +393,15 @@ local function drawLaserEmitter(self, rotation, cx, cy, size, colorName)
 end
 
 local function drawTarget(self, cx, cy, size, colorName, hit, t)
-    local colors      = self.colors
-    local baseSize    = size * 0.5
-    local glowSize    = size * 0.4
-    local lineLength  = size * 0.2
+    local colors = self.colors
+    local baseSize = size * 0.5
+    local glowSize = size * 0.4
+    local lineLength = size * 0.2
 
     -- Cache color keys
     local casingColor = "target_" .. colorName .. "_casing"
-    local glowColor   = "target_" .. colorName .. "_glow"
-    local coreColor   = "target_" .. colorName .. "_core"
+    local glowColor = "target_" .. colorName .. "_glow"
+    local coreColor = "target_" .. colorName .. "_core"
 
     -- Outer diamond (casing)
     colors:setColor(casingColor, 1)
@@ -494,12 +494,12 @@ local function drawGradualBeams(self, t)
         local count = #path
         if count == 0 then goto continue end
 
-        local progress    = math_min(beamProg[beamColor] or 0, count)
-        local intProg     = math_floor(progress)
-        local partial     = progress - intProg
+        local progress = math_min(beamProg[beamColor] or 0, count)
+        local intProg = math_floor(progress)
+        local partial = progress - intProg
 
-        local colorKey    = "beam_" .. beamColor
-        local faintAlpha  = 0.4 * pulse
+        local colorKey = "beam_" .. beamColor
+        local faintAlpha = 0.4 * pulse
         local strongAlpha = 0.9 * pulse
 
         -- Draw full beam segments
