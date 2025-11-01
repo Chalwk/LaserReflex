@@ -20,9 +20,9 @@ local TILE_TYPES = { "straight", "curve", "t_junction", "cross", "dead_end" }
 local PROBABILITY_WEIGHTS = { -- tile weights
     0.3,                      -- straight (most common)
     0.25,                     -- curve
-    0.2,                      -- t_junction
+    0.21,                      -- t_junction
     0.1,                      -- cross
-    0.15,                     -- dead_end
+    0.10,                     -- dead_end (previous 0.15)
 }
 local DIRECTIONS = {
     { dx = 1, dy = 0 }, { dx = -1, dy = 0 },

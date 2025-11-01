@@ -83,12 +83,12 @@ function Grid.new(soundManager, colors)
         },
         dead_end = {
             -- Dead-end: can only enter and exit through the open end (same direction)
-            { up = true,  right = false, down = false, left = false },    -- rotation 0: up only
-            { up = false, right = true,  down = false, left = false },    -- rotation 1: right only
-            { up = false, right = false, down = true,  left = false },    -- rotation 2: down only
-            { up = false, right = false, down = false, left = true }      -- rotation 3: left only
+            { up = true,  right = false, down = false, left = false }, -- rotation 0: up only
+            { up = false, right = true,  down = false, left = false }, -- rotation 1: right only
+            { up = false, right = false, down = true,  left = false }, -- rotation 2: down only
+            { up = false, right = false, down = false, left = true }   -- rotation 3: left only
         },
-        laser = {                                                         -- Laser acts as a dead_end that emits light
+        laser = {                                                      -- Laser acts as a dead_end that emits light
             { up = true,  right = false, down = false, left = false },
             { up = false, right = true,  down = false, left = false },
             { up = false, right = false, down = true,  left = false },
@@ -176,81 +176,94 @@ local function canBeamTravelThroughTile(self, tile, incomingDir, outgoingDir)
     return true
 end
 
-local function explore(self, x, y, incomingDir, visited, path, targetColor)
-    if not inBounds(self, x, y) then return false end
+local function findShortestPath(self, startX, startY, targetColor)
+    local queue = {}
+    local visited = {}
 
-    local inDirKey = (incomingDir == nil) and 4 or incomingDir
-    local key = y * (self.gw * 5) + x * 5 + inDirKey
-    if visited[key] then return false end
-    visited[key] = true
+    -- Initialize with laser starting point
+    local startKey = startY * (self.gw * 5) + startX * 5 + 4 -- 4 for no incoming direction
+    visited[startKey] = true
 
-    local tile = tileAt(self, x, y)
-    if not tile or tile.type == "empty" then return false end
+    table_insert(queue, {
+        x = startX,
+        y = startY,
+        incomingDir = nil,
+        path = { { x = startX, y = startY, incomingDir = nil, color = targetColor } }
+    })
 
-    if tile.type == "laser" then
-        -- For laser tiles, validate the emission direction
-        local laserDir = tile.rotation
-        if incomingDir ~= nil then
+    while #queue > 0 do
+        local current = table_remove(queue, 1)
+        local x, y, incomingDir, path = current.x, current.y, current.incomingDir, current.path
+
+        local tile = tileAt(self, x, y)
+        if not tile or tile.type == "empty" then goto continue end
+
+        -- Handle laser tile specially
+        if tile.type == "laser" then
             -- If we're coming from somewhere else into a laser, that's invalid
-            return false
+            if incomingDir ~= nil then goto continue end
+
+            -- Laser emits in its rotation direction
+            local laserDir = tile.rotation
+            local newX = x + self.dirVecsX[laserDir + 1]
+            local newY = y + self.dirVecsY[laserDir + 1]
+            local nextIncomingDir = (laserDir + 2) % 4
+
+            local newKey = newY * (self.gw * 5) + newX * 5 + nextIncomingDir
+            if not visited[newKey] and inBounds(self, newX, newY) then
+                visited[newKey] = true
+                local newPath = {}
+                for _, seg in ipairs(path) do table_insert(newPath, seg) end
+                table_insert(newPath, { x = newX, y = newY, incomingDir = nextIncomingDir })
+                table_insert(queue, {
+                    x = newX,
+                    y = newY,
+                    incomingDir = nextIncomingDir,
+                    path = newPath
+                })
+            end
+            goto continue
         end
 
-        table_insert(path, { x = x, y = y, incomingDir = incomingDir, color = tile.laserColor })
+        -- Check if we reached a target of the correct color
+        if tile.type == "target" and tile.targetColor == targetColor then return path end
+
+        -- For regular tiles, validate that beam can enter from incoming direction
+        if not canBeamTravelThroughTile(self, tile, incomingDir, nil) then goto continue end
+
+        -- Explore connected directions (excluding the incoming direction)
         local dirVecsX, dirVecsY = self.dirVecsX, self.dirVecsY
-        local newX = x + dirVecsX[laserDir + 1]
-        local newY = y + dirVecsY[laserDir + 1]
-        local nextIncomingDir = (laserDir + 2) % 4
-
-        if explore(self, newX, newY, nextIncomingDir, visited, path, targetColor) then
-            return true
-        end
-
-        table_remove(path)
-        return false
-    end
-
-    -- For regular tiles, validate that beam can enter from incoming direction
-    if not canBeamTravelThroughTile(self, tile, incomingDir, nil) then
-        return false
-    end
-
-    -- Add this position to path
-    local pathSegment = { x = x, y = y, incomingDir = incomingDir }
-    if tile.type == "target" then pathSegment.color = tile.targetColor end
-    table_insert(path, pathSegment)
-
-    -- Check if we reached a target of the correct color
-    if tile.type == "target" and tile.targetColor == targetColor then
-        self.activeBeamPaths[targetColor] = {}
-        for _, seg in ipairs(path) do
-            table_insert(self.activeBeamPaths[targetColor], seg)
-        end
-        self.targetsHit[x .. "," .. y] = true
-        return true
-    end
-
-    -- Explore connected directions (excluding the incoming direction)
-    local dirVecsX, dirVecsY = self.dirVecsX, self.dirVecsY
-    for _, dir in ipairs(DIRS) do
-        if dir ~= incomingDir then
-            -- Validate that beam can exit through this direction
-            if canBeamTravelThroughTile(self, tile, incomingDir, dir) then
-                local newX = x + dirVecsX[dir + 1]
-                local newY = y + dirVecsY[dir + 1]
-                local nextIncomingDir = (dir + 2) % 4
-
-                if explore(self, newX, newY, nextIncomingDir, visited, path, targetColor) then
-                    return true
+        for _, dir in ipairs(DIRS) do
+            if dir ~= incomingDir then
+                -- Validate that beam can exit through this direction
+                if canBeamTravelThroughTile(self, tile, incomingDir, dir) then
+                    local newX = x + dirVecsX[dir + 1]
+                    local newY = y + dirVecsY[dir + 1]
+                    local nextIncomingDir = (dir + 2) % 4
+                    local newKey = newY * (self.gw * 5) + newX * 5 + nextIncomingDir
+                    if not visited[newKey] and inBounds(self, newX, newY) then
+                        visited[newKey] = true
+                        local newPath = {}
+                        for _, seg in ipairs(path) do table_insert(newPath, seg) end
+                        table_insert(newPath, { x = newX, y = newY, incomingDir = nextIncomingDir })
+                        table_insert(queue, {
+                            x = newX,
+                            y = newY,
+                            incomingDir = nextIncomingDir,
+                            path = newPath
+                        })
+                    end
                 end
             end
         end
+
+        ::continue::
     end
 
-    -- Backtrack if no path found from this tile
-    table_remove(path)
-    return false
+    return nil -- No path found
 end
 
+-- BFS approach
 local function computeBeamPaths(self)
     self.activeBeamPaths = {}
     self.targetsHit = {}
@@ -258,13 +271,18 @@ local function computeBeamPaths(self)
     self.previouslyHit = {}
 
     for _, laser in ipairs(self.lasers) do
-        local visited = {}
-        local path = {}
-        local found = explore(self, laser.x, laser.y, nil, visited, path, laser.color)
+        local shortestPath = findShortestPath(self, laser.x, laser.y, laser.color)
 
-        if found then
+        if shortestPath then
+            self.activeBeamPaths[laser.color] = shortestPath
             self.beamProgress[laser.color] = 0
             self.previouslyHit[laser.color] = false
+
+            -- Mark the target as hit (the last segment in the path)
+            local lastSegment = shortestPath[#shortestPath]
+            if lastSegment then
+                self.targetsHit[lastSegment.x .. "," .. lastSegment.y] = true
+            end
         else
             self.activeBeamPaths[laser.color] = {}
         end

@@ -5,7 +5,7 @@
 
 local HEADER_TEXT = "Level: %d"
 local TIMER_TEXT = "Time: %02d:%02d"
-local WIN_TEXT = "All targets reached! Press N for next level. Time: %02d:%02d"
+local WIN_TEXT = "ALL TARGETS SOLVED! Press N for next level. Time: %02d:%02d"
 local SIDE_TEXT = "Targets: %d/%d"
 local FOOTER_TEXT = "PathFinder - Copyright (c) 2025 Jericho Crosby (Chalwk)"
 
@@ -13,12 +13,12 @@ local math_sin = math.sin
 local math_floor = math.floor
 local string_format = string.format
 
+local getTime = love.timer.getTime
+local setFont = love.graphics.setFont
 local love_print = love.graphics.print
 local love_printf = love.graphics.printf
-local setFont = love.graphics.setFont
-local getTime = love.timer.getTime
-local setLineWidth = love.graphics.setLineWidth
 local rectangle = love.graphics.rectangle
+local setLineWidth = love.graphics.setLineWidth
 
 local Game = {}
 Game.__index = Game
